@@ -1,0 +1,25 @@
+{
+  "name": "radweave-reporting",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RadWeave Reporting — standalone report generation service. Called by the RadWeave website, RadWeave Desktop, and (later) hospital API customers.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
+    "hono": "^4.13.1"
+  },
+  "devDependencies": {
+    "@hono/node-server": "^2.1.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}
