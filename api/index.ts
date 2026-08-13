@@ -2,17 +2,24 @@
  * Vercel entry point.
  *
  * vercel.json rewrites every path here, so Hono owns routing rather than the
- * filesystem. Node runtime (not Edge): the Anthropic SDK and the reporting
- * modules that land in the later mission expect Node.
+ * filesystem.
+ *
+ * The default export MUST be an object with a `fetch` method — Vercel's
+ * documented "fetch Web Standard export" for Node.js functions in /api.
+ *
+ * Do NOT export a bare function here, and do NOT use `handle` from
+ * hono/vercel. That adapter is `(app) => (req) => app.fetch(req)`: a bare
+ * function taking a web Request. Vercel treats a bare default-exported
+ * function as the Node-style `(req, res)` handler, calls it with
+ * (IncomingMessage, ServerResponse), discards the Response it returns, and
+ * never ends `res` — so every request hangs until the platform duration
+ * limit. hono/vercel is for Next.js App Router / Edge, not for /api Node
+ * functions. See test/vercel-entry.test.ts, which pins this shape.
  */
-
-import { handle } from "hono/vercel";
 
 import { createApp } from "../src/app.ts";
 import { createSupabaseTokenVerifier } from "../src/auth/resolve-caller.ts";
 import { loadConfig } from "../src/config.ts";
-
-export const config = { runtime: "nodejs" };
 
 const serviceConfig = loadConfig();
 
@@ -23,4 +30,8 @@ const app = createApp({
   ),
 });
 
-export default handle(app);
+export default {
+  fetch(request: Request): Response | Promise<Response> {
+    return app.fetch(request);
+  },
+};

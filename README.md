@@ -101,6 +101,27 @@ denylist checked first, so a caller sending `patient_name` is told exactly
 which field was rejected. `user_id` and `org_id` are also prohibited: a caller
 may not assert whose report this is.
 
+## Deployment notes
+
+`api/index.ts` must default-export **an object with a `fetch` method** —
+Vercel's Web Standard export for Node.js functions in `/api`. A bare
+default-exported function is invoked as a Node-style `(req, res)` handler, so
+its returned `Response` is discarded and the socket never closes: every request
+then hangs until the duration limit. For the same reason, do not use `handle`
+from `hono/vercel` here — that adapter targets Next.js App Router and Edge.
+`test/vercel-entry.test.ts` pins this.
+
+The local dev server is `src/dev-server.ts`, deliberately **not** `server.ts`:
+Vercel captures a root- or `src/`-level `server.{ts,js,…}` that calls
+`server.listen()` at startup and deploys it as the HTTP server, which would
+compete with `api/index.ts` for the same traffic.
+
+`maxDuration` is **60s**. Hobby's default and ceiling are both 300s, so this is
+a deliberate reduction: it caps the blast radius of a hang rather than burning
+five minutes of compute per stuck request. Revisit when real generation lands —
+a long streamed report could exceed 60s and would be cut off mid-stream. Hobby
+cannot exceed 300s regardless; only Pro goes higher (800s).
+
 ## Layout
 
 ```

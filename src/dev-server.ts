@@ -1,8 +1,13 @@
 /**
  * Local development server.
  *
- * Vercel does not use this file — see api/index.ts. This exists so the service
- * can be run and exercised locally with the same app instance.
+ * Vercel does not use this file — see api/index.ts.
+ *
+ * Named dev-server.ts, NOT server.ts, on purpose: Vercel auto-detects a
+ * `server.{ts,js,mjs,...}` in the project root or src/ that calls
+ * `server.listen()` at module startup, and captures it as the deployed HTTP
+ * server. That would silently compete with api/index.ts for the same traffic.
+ * One deployable entry point, and it is api/index.ts.
  */
 
 import { serve } from "@hono/node-server";
