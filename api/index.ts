@@ -20,14 +20,20 @@
 import { createApp } from "../src/app.ts";
 import { createSupabaseTokenVerifier } from "../src/auth/resolve-caller.ts";
 import { loadConfig } from "../src/config.ts";
+import { getUserPlan } from "../src/lib/stripe/get-user-plan.ts";
+import { createServiceRoleClient } from "../src/supabase/clients.ts";
+import { createRealWorkflow } from "../src/workflows/real.ts";
 
 const serviceConfig = loadConfig();
+const serviceSupabase = createServiceRoleClient(serviceConfig);
 
 const app = createApp({
   verifyToken: createSupabaseTokenVerifier(
     serviceConfig.supabaseUrl,
     serviceConfig.supabaseAnonKey,
   ),
+  resolvePlan: async (userId) => (await getUserPlan(userId, serviceSupabase)).plan,
+  createWorkflow: (context) => createRealWorkflow(context, { serviceSupabase }),
 });
 
 export default {

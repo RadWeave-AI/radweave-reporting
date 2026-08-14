@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp } from "../src/app.ts";
+import { createStubWorkflow } from "../src/workflows/stub.ts";
 import { WORKFLOWS } from "../src/workflows/types.ts";
 
 const TOKEN = "valid-access-token";
@@ -10,6 +11,7 @@ const app = createApp({
   verifyToken: async (token) =>
     token === TOKEN ? { id: "user-123", email: "radiologist@example.com" } : null,
   resolvePlan: async () => "pro",
+  createWorkflow: ({ workflow }) => createStubWorkflow(workflow),
 });
 
 /** Smallest body that satisfies each workflow's required fields. */
@@ -65,7 +67,7 @@ test("a caller-supplied X-Request-Id is echoed back for traceability", async () 
 // ── The five report endpoints ────────────────────────────────────────────────
 
 for (const workflow of WORKFLOWS) {
-  test(`POST /v1/reports/${workflow} generates (stubbed) for an authenticated caller`, async () => {
+  test(`POST /v1/reports/${workflow} uses the injected workflow for an authenticated caller`, async () => {
     const response = await post(`/v1/reports/${workflow}`, MINIMAL_BODY[workflow], authed());
     const body = await response.json();
 

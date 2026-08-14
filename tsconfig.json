@@ -2,14 +2,15 @@
   "compilerOptions": {
     "target": "ES2023",
     "lib": ["ES2023", "DOM"],
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
     "strict": true,
-    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "skipLibCheck": true,
     "types": ["node"]

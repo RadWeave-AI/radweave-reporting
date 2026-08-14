@@ -1,0 +1,217 @@
+[
+  {
+    "id": "checklist-fixture",
+    "workflow": "checklist",
+    "usage_mode": "checklist",
+    "website_body": {
+      "modality": "MRI",
+      "body_region": "Spine",
+      "indication": "Low back pain.",
+      "findings": "- First input finding.\n- Second input finding.",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Lumbosacral Spine",
+      "model": "claude-sonnet-4-6",
+      "report_header": "MRI LUMBOSACRAL SPINE",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": true
+    },
+    "service_body": {
+      "modality": "MRI",
+      "body_region": "Spine",
+      "indication": "Low back pain.",
+      "findings": "- First input finding.\n- Second input finding.",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Lumbosacral Spine",
+      "model": "claude-sonnet-4-6",
+      "report_header": "MRI LUMBOSACRAL SPINE",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": true
+    }
+  },
+  {
+    "id": "quick-fixture",
+    "workflow": "quick",
+    "usage_mode": "quick_report",
+    "website_body": {
+      "generation_mode": "quick",
+      "modality": "MRI",
+      "body_region": "MSK",
+      "indication": "Knee pain.",
+      "findings": "ACL sprain\nMedial meniscus tear",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Knee",
+      "laterality": "Right",
+      "age": 47,
+      "sex": "Female",
+      "model": "claude-sonnet-4-6",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false
+    },
+    "service_body": {
+      "modality": "MRI",
+      "body_region": "MSK",
+      "indication": "Knee pain.",
+      "findings": "ACL sprain\nMedial meniscus tear",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Knee",
+      "laterality": "Right",
+      "age": 47,
+      "sex": "Female",
+      "model": "claude-sonnet-4-6",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false
+    }
+  },
+  {
+    "id": "comparison-fixture",
+    "workflow": "comparison",
+    "usage_mode": "comparison",
+    "website_body": {
+      "generation_mode": "comparison",
+      "modality": "MRI",
+      "body_region": "Spine",
+      "indication": "Follow-up.",
+      "findings": "baseline finding",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Lumbosacral Spine",
+      "model": "claude-sonnet-4-6",
+      "report_header": "MRI LUMBOSACRAL SPINE",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false,
+      "prior_date": "2026-08-03",
+      "prior_opinion": "  Prior disc protrusion.  ",
+      "comparison_blocks": [
+        {
+          "type": "group",
+          "status": "stationary",
+          "findings": [{ "text": "  Stable L4/5 protrusion  " }]
+        },
+        {
+          "type": "group",
+          "status": "new",
+          "header": "  Bespoke new header:  ",
+          "findings": [{ "text": "  New L5/S1 extrusion  ", "is_new": true }]
+        },
+        { "type": "loose", "text": "  Correlate clinically.  " }
+      ],
+      "stationary_phrasing": "  No significant interval change  ",
+      "new_phrasing": "  Interval development  "
+    },
+    "service_body": {
+      "modality": "MRI",
+      "body_region": "Spine",
+      "indication": "Follow-up.",
+      "findings": "baseline finding",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Lumbosacral Spine",
+      "model": "claude-sonnet-4-6",
+      "report_header": "MRI LUMBOSACRAL SPINE",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false,
+      "prior_date": "2026-08-03",
+      "prior_opinion": "  Prior disc protrusion.  ",
+      "comparison_blocks": [
+        {
+          "type": "group",
+          "status": "stationary",
+          "findings": [{ "text": "  Stable L4/5 protrusion  " }]
+        },
+        {
+          "type": "group",
+          "status": "new",
+          "header": "  Bespoke new header:  ",
+          "findings": [{ "text": "  New L5/S1 extrusion  ", "is_new": true }]
+        },
+        { "type": "loose", "text": "  Correlate clinically.  " }
+      ],
+      "stationary_phrasing": "  No significant interval change  ",
+      "new_phrasing": "  Interval development  "
+    }
+  },
+  {
+    "id": "my-template-fixture",
+    "workflow": "my-template",
+    "usage_mode": "my_template",
+    "website_body": {
+      "modality": "MRI",
+      "body_region": "MSK",
+      "indication": "Knee pain.",
+      "findings": "ACL sprain",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Knee",
+      "laterality": "Right",
+      "model": "claude-sonnet-4-6",
+      "report_header": "",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false,
+      "user_template_text": "Baseline findings text.",
+      "user_template_conclusion": "OPINION:\n- Normal study.",
+      "user_template_title": "My Knee Template",
+      "template_edits": "ACL sprain noted.",
+      "use_reporting_style_profile": true
+    },
+    "service_body": {
+      "modality": "MRI",
+      "body_region": "MSK",
+      "indication": "Knee pain.",
+      "findings": "ACL sprain",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Knee",
+      "laterality": "Right",
+      "model": "claude-sonnet-4-6",
+      "report_header": "",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false,
+      "user_template_text": "Baseline findings text.",
+      "user_template_conclusion": "OPINION:\n- Normal study.",
+      "user_template_title": "My Knee Template",
+      "template_edits": "ACL sprain noted.",
+      "use_reporting_style_profile": true
+    }
+  },
+  {
+    "id": "template-guided-fixture",
+    "workflow": "template-guided",
+    "usage_mode": "template_guided",
+    "website_body": {
+      "modality": "MRI",
+      "body_region": "MSK",
+      "indication": "Knee pain.",
+      "findings": "ACL sprain",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Knee",
+      "laterality": "Right",
+      "model": "claude-sonnet-4-6",
+      "report_header": "",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false,
+      "selected_template_id": "skeleton-normal:mri-knee",
+      "template_edits": "STRUCTURED FINDINGS:\n- ACL sprain confirmed\nOPINION POINTS:\n- Correlate clinically"
+    },
+    "service_body": {
+      "modality": "MRI",
+      "body_region": "MSK",
+      "indication": "Knee pain.",
+      "findings": "ACL sprain",
+      "field_strength": "HIGH FIELD (3.0 TESLA)",
+      "study_type": "Knee",
+      "laterality": "Right",
+      "model": "claude-sonnet-4-6",
+      "report_header": "",
+      "opinion_hints": "",
+      "residual_opinion_hints": "",
+      "preserve_findings_order": false,
+      "selected_template_id": "skeleton-normal:mri-knee",
+      "template_edits": "STRUCTURED FINDINGS:\n- ACL sprain confirmed\nOPINION POINTS:\n- Correlate clinically"
+    }
+  }
+]

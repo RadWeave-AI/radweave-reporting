@@ -11,6 +11,9 @@
 export interface ServiceConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
+  supabaseServiceRoleKey: string;
+  anthropicApiKey: string;
+  voyageApiKey: string;
   port: number;
 }
 
@@ -26,6 +29,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
   return {
     supabaseUrl: required("SUPABASE_URL", env),
     supabaseAnonKey: required("SUPABASE_ANON_KEY", env),
+    supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY", env),
+    anthropicApiKey: required("ANTHROPIC_API_KEY", env),
+    voyageApiKey: required("VOYAGE_API_KEY", env),
     port: Number(env.PORT ?? 8787),
   };
+}
+
+let cachedConfig: ServiceConfig | null = null;
+
+/** Shared lazy config for copied modules; still fails loudly on first use. */
+export function getServiceConfig(): ServiceConfig {
+  cachedConfig ??= loadConfig();
+  return cachedConfig;
 }

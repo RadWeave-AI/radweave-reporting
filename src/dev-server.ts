@@ -15,11 +15,17 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { createSupabaseTokenVerifier } from "./auth/resolve-caller.ts";
 import { loadConfig } from "./config.ts";
+import { getUserPlan } from "./lib/stripe/get-user-plan.ts";
+import { createServiceRoleClient } from "./supabase/clients.ts";
+import { createRealWorkflow } from "./workflows/real.ts";
 
 const config = loadConfig();
+const serviceSupabase = createServiceRoleClient(config);
 
 const app = createApp({
   verifyToken: createSupabaseTokenVerifier(config.supabaseUrl, config.supabaseAnonKey),
+  resolvePlan: async (userId) => (await getUserPlan(userId, serviceSupabase)).plan,
+  createWorkflow: (context) => createRealWorkflow(context, { serviceSupabase }),
 });
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {

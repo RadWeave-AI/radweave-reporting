@@ -26,8 +26,8 @@ import {
 import type { Principal } from "./auth/principal.ts";
 import { ServiceError, errorEnvelope, statusFor } from "./http/errors.ts";
 import { respond } from "./http/transport.ts";
+import { createRealWorkflow } from "./workflows/real.ts";
 import { validateReportRequest } from "./workflows/request.ts";
-import { createStubWorkflow } from "./workflows/stub.ts";
 import { WORKFLOWS, type WorkflowName, type WorkflowRun } from "./workflows/types.ts";
 
 export interface WorkflowContext {
@@ -41,15 +41,14 @@ export interface AppDeps {
   verifyToken?: TokenVerifier;
   resolvePlan?: PlanResolver;
   resolveApiKey?: ApiKeyResolver;
-  /** Swapped for the real workflow modules in the later extraction mission. */
-  createWorkflow?: (context: WorkflowContext) => WorkflowRun;
+  createWorkflow?: (context: WorkflowContext) => WorkflowRun | Promise<WorkflowRun>;
 }
 
 type Vars = { requestId: string; principal: Principal };
 
 export function createApp(deps: AppDeps = {}): Hono<{ Variables: Vars }> {
   const app = new Hono<{ Variables: Vars }>();
-  const createWorkflow = deps.createWorkflow ?? ((ctx) => createStubWorkflow(ctx.workflow));
+  const createWorkflow = deps.createWorkflow ?? createRealWorkflow;
 
   // Every response carries a request id, including error envelopes.
   app.use("*", async (c, next) => {
@@ -129,7 +128,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: Vars }> {
       }
 
       const body = validateReportRequest(workflow, raw);
-      const run = createWorkflow({
+      const run = await createWorkflow({
         workflow,
         principal: c.get("principal"),
         body,

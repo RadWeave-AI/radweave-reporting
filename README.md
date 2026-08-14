@@ -6,20 +6,18 @@ website, RadWeave Desktop, and — later — hospital API customers.
 Deployed to its own Vercel project ("RadWeave Reporting", Pro plan), separate
 from the radmindai website project.
 
-## Status: scaffold only
+## Status
 
-Auth, transport, validation and error handling are real and tested. **Generation
-is stubbed.** The five workflow modules (`checklist-generation`,
-`quick-report-generation`, `comparison-generation`, `my-template-generation`,
-`template-guided-generation`) are copied over from the website repo in a later
-mission, once this foundation is proven. No provider call is made, no database
-is touched, and no credits are consumed by the current code.
+Auth, transport, validation, error handling, and all five report-generation
+workflows are real and tested. The reporting kernel remains copied in both this
+service and the website during the migration phase; the website has not been
+switched to this service yet.
 
 ```
 npm install
-npm test          # 62 tests, no network
+npm test          # unit + ported browser-generation suites; no network
 npm run typecheck
-npm run dev       # needs SUPABASE_URL + SUPABASE_ANON_KEY
+npm run dev       # needs every variable in .env.example
 ```
 
 ## API
@@ -28,11 +26,11 @@ npm run dev       # needs SUPABASE_URL + SUPABASE_ANON_KEY
 |---|---|---|
 | GET | `/v1/health` | live (public) |
 | GET | `/v1/credits` | live shape, stub balances |
-| POST | `/v1/reports/checklist` | live shape, stub generation |
-| POST | `/v1/reports/quick` | live shape, stub generation |
-| POST | `/v1/reports/comparison` | live shape, stub generation |
-| POST | `/v1/reports/my-template` | live shape, stub generation |
-| POST | `/v1/reports/template-guided` | live shape, stub generation |
+| POST | `/v1/reports/checklist` | real generation |
+| POST | `/v1/reports/quick` | real generation |
+| POST | `/v1/reports/comparison` | real generation |
+| POST | `/v1/reports/my-template` | real generation + JWT-scoped retrieval |
+| POST | `/v1/reports/template-guided` | real generation |
 | POST | `/v1/reviews/consultant` | reserved — returns 501 |
 
 ### Authentication
@@ -116,17 +114,16 @@ Vercel captures a root- or `src/`-level `server.{ts,js,…}` that calls
 `server.listen()` at startup and deploys it as the HTTP server, which would
 compete with `api/index.ts` for the same traffic.
 
-`maxDuration` is **60s**. Hobby's default and ceiling are both 300s, so this is
-a deliberate reduction: it caps the blast radius of a hang rather than burning
-five minutes of compute per stuck request. Revisit when real generation lands —
-a long streamed report could exceed 60s and would be cut off mid-stream. Hobby
-cannot exceed 300s regardless; only Pro goes higher (800s).
+`maxDuration` is **300s**. Real generation includes streamed provider calls and
+Template-guided can perform a second correction call, so the stub-era 60s cap
+could terminate a valid report mid-stream. Vercel Fluid Compute defaults to
+300s; Pro can be configured higher if production measurements justify it.
 
 ## Layout
 
 ```
 api/index.ts              Vercel entry (hono/vercel, Node runtime)
-src/server.ts             local dev server (@hono/node-server)
+src/dev-server.ts         local dev server (@hono/node-server)
 src/app.ts                routes, auth middleware, error mapping
 src/config.ts             fail-loud env loading (no .env.local fallback)
 src/auth/principal.ts     Principal / AuthResult types
@@ -135,7 +132,9 @@ src/http/errors.ts        error categories, status map, envelope
 src/http/transport.ts     Accept-driven SSE vs blocking dispatch
 src/workflows/types.ts    transport-neutral workflow contract
 src/workflows/request.ts  allowlist + PHI denylist validation
-src/workflows/stub.ts     placeholder generation (to be replaced)
+src/workflows/real.ts     five real workflow adapters
+src/workflows/stub.ts     transport-only test fixture
+src/lib/                  copied reporting kernel and dependencies
 ```
 
 ## Deferred deliberately
