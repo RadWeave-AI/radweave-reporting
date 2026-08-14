@@ -120,6 +120,26 @@ RIGHT: "No pleural collections on the left side."
 This applies to: kidneys, lungs, pleura, adrenals, ovaries, collateral ligaments, menisci, and any other bilateral structure.
 `.trim();
 
+export type ReportBulletMarker = "•" | "-";
+
+function applyReportBulletMarker(source: string, bulletMarker: ReportBulletMarker): string {
+  // Comparison explicitly requests the legacy marker. Returning the original
+  // string without replacements is what keeps its assembled prompt byte-stable.
+  if (bulletMarker === "-") return source;
+
+  return source
+    .replaceAll("- **Finding one.**\n- **Second finding.**", "• **Finding one.**\n• **Second finding.**")
+    .replaceAll("- Always bold dash bullets: - **text.**", "- Always bold bullet lines: • **text.**")
+    .replaceAll('CORRECT: "- **Lumbar spondylosis.**"', 'CORRECT: "• **Lumbar spondylosis.**"')
+    .replaceAll('- Always "- " prefix, one finding per bullet', '- Always "• " prefix, one finding per bullet')
+    .replaceAll("- Finding one.\n- Finding two.", "• Finding one.\n• Finding two.")
+    .replaceAll("- **Finding.**", "• **Finding.**")
+    .replaceAll(
+      'CORRECT: "- Upper abdominal cuts show bilateral renal gravels."',
+      'CORRECT: "• Upper abdominal cuts show bilateral renal gravels."',
+    );
+}
+
 // ─────────────────────────────────────────────
 // PROMPT NON-DISCLOSURE (S3) — always included, protects the reporting-style IP
 // ─────────────────────────────────────────────
@@ -293,7 +313,8 @@ MRI ABDOMEN STANDARD PHRASES:
 
 export function buildSystemPrompt(
   modality: string,
-  bodyRegion: string
+  bodyRegion: string,
+  bulletMarker: ReportBulletMarker = "•",
 ): string {
   const m = modality?.toUpperCase() ?? "";
   const r = bodyRegion?.toUpperCase() ?? "";
@@ -319,7 +340,7 @@ export function buildSystemPrompt(
     else if (r.includes("ABDOMEN") || r.includes("PELVIS") || r.includes("LIVER")) parts.push(MRI_ABDOMEN_RULES);
   }
 
-  return parts.join("\n\n");
+  return applyReportBulletMarker(parts.join("\n\n"), bulletMarker);
 }
 
 /**
@@ -336,4 +357,3 @@ export function buildMyTemplateSystemPrompt(): string {
 // Keep this for any fallback that still imports MASTER_SYSTEM_PROMPT
 // Remove once prompt_builder.ts is updated
 export const MASTER_SYSTEM_PROMPT = buildSystemPrompt("", "");
-

@@ -24,6 +24,7 @@ import {
   type TokenVerifier,
 } from "./auth/resolve-caller.ts";
 import type { Principal } from "./auth/principal.ts";
+import { formatReport, validateFormatReportRequest } from "./formatting/index.ts";
 import { ServiceError, errorEnvelope, statusFor } from "./http/errors.ts";
 import { respond } from "./http/transport.ts";
 import { createRealWorkflow } from "./workflows/real.ts";
@@ -103,6 +104,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: Vars }> {
   };
 
   app.use("/v1/reports/*", authenticate);
+  app.use("/v1/format", authenticate);
   app.use("/v1/reviews/*", authenticate);
   app.use("/v1/credits", authenticate);
 
@@ -115,6 +117,38 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: Vars }> {
       plan: principal.plan,
       credits: { remaining: 0, limit: 0 },
       stub: true,
+    });
+  });
+
+  app.post("/v1/format", async (c) => {
+    let raw: unknown;
+    try {
+      raw = await c.req.json();
+    } catch {
+      throw new ServiceError("validation-error", "Invalid JSON body.");
+    }
+
+    let request;
+    try {
+      request = validateFormatReportRequest(raw);
+    } catch (error) {
+      throw new ServiceError(
+        "validation-error",
+        error instanceof Error ? error.message : "Invalid formatting request.",
+      );
+    }
+
+    const result = await formatReport(request);
+    return c.json({
+      ok: true,
+      request_id: c.get("requestId"),
+      style_id: result.style_id,
+      style_path: result.style_path,
+      report_family: result.report_family,
+      html: result.html,
+      plain_text: result.plain_text,
+      docx_base64: result.docx?.toString("base64"),
+      outline: result.outline,
     });
   });
 

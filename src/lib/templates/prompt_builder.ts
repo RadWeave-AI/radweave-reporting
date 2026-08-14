@@ -212,7 +212,8 @@ MY TEMPLATE REPORT MODE — ADDITIONAL STRICT RULES (HIGHEST PRIORITY):
 8. SAFETY RULE: Never add a finding that was not provided. Never omit a finding that was provided. Use cautious, conservative wording for any ambiguous edit rather than guessing severity or certainty.
 
 MY TEMPLATE OPINION FORMAT:
-- Always bold dash bullets: - **text.**
+- Use "• " for every bullet line in FINDINGS and OPINION.
+- Always bold bullet lines: • **text.**
 - Most important finding first
 - SHORT — diagnosis name only. Never repeat the full finding description.
 - OPINION must provide diagnostic synthesis, not a line-by-line repetition of FINDINGS.
@@ -400,7 +401,7 @@ MY TEMPLATE OPINION FORMAT:
         if (!input.my_template_mode && p.report_structure)
           lines.push(`Report structure: ${p.report_structure}`);
         if (!input.my_template_mode && typeof p.uses_bullets === "boolean")
-          lines.push(`Uses bullet points: ${p.uses_bullets ? "yes — use dash-prefixed bullets" : "no — use flowing prose sentences"}`);
+          lines.push(`Uses bullet points: ${p.uses_bullets ? "yes — use •-prefixed bullets" : "no — use flowing prose sentences"}`);
         if (!input.my_template_mode && typeof p.uses_numbered_impression === "boolean" && p.uses_numbered_impression)
           lines.push("Uses numbered impression lines: yes — number opinion points sequentially.");
         if (!input.my_template_mode && p.preferred_section_order?.length)
@@ -810,8 +811,8 @@ OPINION SYNTHESIS RULES:
 - OPINION must provide diagnostic synthesis, not a line-by-line repetition of FINDINGS.
 - Each OPINION line is a concise diagnosis-style statement — add an OPINION line only for a diagnosis not already covered by an existing bullet; do not duplicate.
 - Combine related findings into a single meaningful clinical conclusion when appropriate.
-  Example: cirrhosis + splenomegaly + ascites → "- **Liver cirrhosis with portal hypertension manifestations.**"
-  Example: L4/5 left-sided disc herniation → "- **L4/5 left-sided disc herniation.**"
+  Example: cirrhosis + splenomegaly + ascites → "• **Liver cirrhosis with portal hypertension manifestations.**"
+  Example: L4/5 left-sided disc herniation → "• **L4/5 left-sided disc herniation.**"
 - Use appropriate uncertainty language: "likely representing", "consistent with", "suggestive of", "cannot exclude", "may represent".
 - Include a differential diagnosis only when the finding is genuinely ambiguous and the differential is clinically important.
 - Recommend follow-up or correlation only when clinically appropriate for the specific stated pathology — not as a default.
@@ -825,12 +826,12 @@ urgency, or clinical significance. Where two typed findings are combined into a
 single OPINION bullet, that bullet takes the position of the earlier of the two.
 
 QUICK REPORT OVERRIDE — OPINION ORDER SUPERSEDED:
-The base rule "Most important finding first" does NOT govern the sequence of OPINION bullets in this mode. OPINION ORDER above is the sole authority for that sequence. All other base OPINION FORMAT rules — the "OPINION:" header, bold dash bullets, and short diagnosis-only phrasing — continue to apply unchanged.
+The base rule "Most important finding first" does NOT govern the sequence of OPINION bullets in this mode. OPINION ORDER above is the sole authority for that sequence. All other base OPINION FORMAT rules — the "OPINION:" header, bold bullet lines, and short diagnosis-only phrasing — continue to apply unchanged.
 
 OPINION INDICATION PROHIBITION — CRITICAL:
 - The Indication field is clinical context only. Do not import indication text into OPINION bullets.
-- WRONG: "- **L4/5 disc herniation, correlating with the patient's left leg pain.**"
-- RIGHT:  "- **L4/5 left-sided disc herniation.**"
+- WRONG: "• **L4/5 disc herniation, correlating with the patient's left leg pain.**"
+- RIGHT:  "• **L4/5 left-sided disc herniation.**"
 - Do not write "correlating with the patient's [symptom]" based only on the Indication field.
 - Clinical correlation phrases may only appear when explicitly requested by the radiologist in their typed findings or opinion notes.`;
 
@@ -952,7 +953,7 @@ OPINION INDICATION PROHIBITION — CRITICAL:
 
 // -- Comparison Report: radiologist-marked interval change -> grouped report ---
 export function buildComparisonReportPrompt(input: ComparisonPromptInput): BuiltPrompt {
-  const baseSystem = buildSystemPrompt(input.modality, input.body_region);
+  const baseSystem = buildSystemPrompt(input.modality, input.body_region, "-");
   const fsLabel = input.field_strength
     ? (FIELD_STRENGTH_LABEL[input.field_strength] ?? input.field_strength)
     : null;
@@ -1172,4 +1173,3 @@ COMPARISON REPORT MODE - HIGHEST PRIORITY:
 export function buildBlankPrompt(input: MatchInput): BuiltPrompt {
   return buildPrompt([], input);
 }
-
