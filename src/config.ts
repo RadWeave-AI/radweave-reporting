@@ -13,7 +13,7 @@ export interface ServiceConfig {
   supabaseAnonKey: string;
   supabaseServiceRoleKey: string;
   anthropicApiKey: string;
-  voyageApiKey: string;
+  voyageApiKey?: string;
   port: number;
 }
 
@@ -31,7 +31,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
     supabaseAnonKey: required("SUPABASE_ANON_KEY", env),
     supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY", env),
     anthropicApiKey: required("ANTHROPIC_API_KEY", env),
-    voyageApiKey: required("VOYAGE_API_KEY", env),
+    voyageApiKey: env.VOYAGE_API_KEY || undefined,
     port: Number(env.PORT ?? 8787),
   };
 }

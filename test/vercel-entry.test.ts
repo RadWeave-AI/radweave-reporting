@@ -24,7 +24,7 @@ process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "test-anon-key";
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= "test-service-key";
 process.env.ANTHROPIC_API_KEY ??= "test-anthropic-key";
-process.env.VOYAGE_API_KEY ??= "test-voyage-key";
+delete process.env.VOYAGE_API_KEY;
 
 const entry = await import("../api/index.ts");
 

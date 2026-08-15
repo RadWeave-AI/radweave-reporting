@@ -17,8 +17,9 @@ const VOYAGE_MODEL = "voyage-4";
 const VOYAGE_DIMENSION = 1024;
 const MAX_RETRIES = 2;
 
-// The service config resolves this fail-loud from process.env; there is no
-// filesystem fallback in this standalone host.
+// The service config reads only process.env; there is no filesystem fallback
+// in this standalone host. Voyage is optional and checked only when this
+// dormant style-example feature is invoked.
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -37,6 +38,9 @@ class VoyageEmbeddingProvider implements EmbeddingProvider {
     if (!Array.isArray(texts) || texts.length === 0) return [];
 
     const apiKey = getServiceConfig().voyageApiKey;
+    if (!apiKey) {
+      throw new Error("VOYAGE_API_KEY is not configured.");
+    }
 
     const body = JSON.stringify({
       input: texts,

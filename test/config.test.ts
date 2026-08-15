@@ -29,7 +29,6 @@ for (const name of [
   "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "ANTHROPIC_API_KEY",
-  "VOYAGE_API_KEY",
 ] as const) {
   test(`loadConfig fails loudly when ${name} is absent`, () => {
     const env = { ...COMPLETE_ENV } as Record<string, string | undefined>;
@@ -37,6 +36,12 @@ for (const name of [
     assert.throws(() => loadConfig(env), new ConfigError(`Missing required environment variable: ${name}`));
   });
 }
+
+test("loadConfig permits VOYAGE_API_KEY to be absent", () => {
+  const env = { ...COMPLETE_ENV } as Record<string, string | undefined>;
+  delete env.VOYAGE_API_KEY;
+  assert.equal(loadConfig(env).voyageApiKey, undefined);
+});
 
 test("service config has no .env.local filesystem fallback", async () => {
   const source = await readFile(new URL("../src/config.ts", import.meta.url), "utf8");
