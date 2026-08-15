@@ -24,7 +24,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 
-import { getServiceConfig } from "@/config";
+import { getServiceConfig } from "../../config.ts";
 // ── Shared env / client factories ───────────────────────────────────────────
 // Identical to the private helpers route.ts used to define locally; moved
 // here so both routes call the same implementation.

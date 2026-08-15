@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getBodyRegionSearchAliases } from "@/lib/templates/template-region-aliases";
+import { getBodyRegionSearchAliases } from "./template-region-aliases.ts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

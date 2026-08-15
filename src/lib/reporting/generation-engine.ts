@@ -18,6 +18,6 @@
  * behavior depends on it.
  */
 
-export * from "@/lib/reporting/kernel";
-export * from "@/lib/reporting/checklist-generation";
+export * from "./kernel.ts";
+export * from "./checklist-generation.ts";
 

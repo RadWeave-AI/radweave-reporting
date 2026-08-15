@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { BETA_CREDIT_LIMIT, isBetaTester } from "@/lib/beta/access";
+import { BETA_CREDIT_LIMIT, isBetaTester } from "../beta/access.ts";
 
 // ── Credit cost per mode ───────────────────────────────────────────────────────
 

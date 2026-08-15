@@ -1,6 +1,6 @@
-import { buildMyTemplateSystemPrompt, buildSystemPrompt } from "@/lib/ai/system_prompt";
-import { isPairedStudyType } from "@/lib/config/laterality";
-import type { MatchInput, MatchedTemplate } from "@/lib/templates/matcher";
+import { buildMyTemplateSystemPrompt, buildSystemPrompt } from "../ai/system_prompt.ts";
+import { isPairedStudyType } from "../config/laterality.ts";
+import type { MatchInput, MatchedTemplate } from "./matcher.ts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

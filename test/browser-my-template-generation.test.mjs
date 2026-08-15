@@ -4,7 +4,7 @@ import test from "node:test";
 
 const {
   prepareMyTemplateReport,
-} = await import("@/lib/reporting/my-template-generation");
+} = await import("../src/lib/reporting/my-template-generation.ts");
 
 const USER = { id: "my-template-user-123", email: "radiologist@example.com" };
 

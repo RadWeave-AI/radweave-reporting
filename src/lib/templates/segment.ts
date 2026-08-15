@@ -1,4 +1,4 @@
-import { parseAbbreviations } from "@/lib/ai/abbreviation-parser";
+import { parseAbbreviations } from "../ai/abbreviation-parser.ts";
 
 export interface Segment {
   text: string;

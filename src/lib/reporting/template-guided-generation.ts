@@ -25,16 +25,16 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { parseToPrompt } from "@/lib/ai/abbreviation-parser";
-import { calculateAnthropicCost, aggregateAnthropicUsage } from "@/lib/ai/anthropic-cost";
+import { parseToPrompt } from "../ai/abbreviation-parser.ts";
+import { calculateAnthropicCost, aggregateAnthropicUsage } from "../ai/anthropic-cost.ts";
 import {
   buildStrictCorrectionPrompt,
   enforceStrictStyle,
   extractStrictStyleRequirements,
   validateStrictStyle,
-} from "@/lib/ai/strict-style";
-import { loadDatabaseAbbreviations } from "@/lib/ai/database-abbreviations";
-import { canUseFeature } from "@/lib/features/access";
+} from "../ai/strict-style.ts";
+import { loadDatabaseAbbreviations } from "../ai/database-abbreviations.ts";
+import { canUseFeature } from "../features/access.ts";
 import {
   ALLOWED_MODELS,
   buildCachedSystemBlocks,
@@ -42,19 +42,19 @@ import {
   getAnthropic,
   resolvePartialNormals,
   type AllowedModel,
-} from "@/lib/reporting/kernel";
-import { enforceOpinionOrder } from "@/lib/reporting/opinion-order";
-import { persistReportUsageWithRetry } from "@/lib/reporting/usage-log-persistence";
-import { getSkeleton, type Skeleton } from "@/lib/skeletons/skeletons";
-import { getUserPlan } from "@/lib/stripe/get-user-plan";
-import { isNormalTemplateRow } from "@/lib/templates/normal-template";
-import { buildPrompt } from "@/lib/templates/prompt_builder";
-import type { MatchedTemplate, MatchInput } from "@/lib/templates/matcher";
+} from "./kernel.ts";
+import { enforceOpinionOrder } from "./opinion-order.ts";
+import { persistReportUsageWithRetry } from "./usage-log-persistence.ts";
+import { getSkeleton, type Skeleton } from "../skeletons/skeletons.ts";
+import { getUserPlan } from "../stripe/get-user-plan.ts";
+import { isNormalTemplateRow } from "../templates/normal-template.ts";
+import { buildPrompt } from "../templates/prompt_builder.ts";
+import type { MatchedTemplate, MatchInput } from "../templates/matcher.ts";
 import {
   getOrCreateUsage,
   refundCredits,
   reserveCredits,
-} from "@/lib/usage/credits";
+} from "../usage/credits.ts";
 
 const CREDIT_MODE = "fast" as const;
 const REPORT_MODE = "template_guided";

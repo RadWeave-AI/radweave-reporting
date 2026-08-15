@@ -1,4 +1,4 @@
-import { PAIRED_ORGANS } from "@/lib/config/study_types";
+import { PAIRED_ORGANS } from "./study_types.ts";
 
 export type Laterality = "Right" | "Left" | "Bilateral";
 

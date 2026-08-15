@@ -4,7 +4,7 @@ import test from "node:test";
 
 const {
   prepareTemplateGuidedReport,
-} = await import("@/lib/reporting/template-guided-generation");
+} = await import("../src/lib/reporting/template-guided-generation.ts");
 
 const USER = { id: "tg-user-123", email: "radiologist@example.com" };
 

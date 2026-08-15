@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isBetaTester } from "@/lib/beta/access";
-import { getSupabaseService } from "@/lib/reporting/kernel";
+import { isBetaTester } from "../beta/access.ts";
+import { getSupabaseService } from "../reporting/kernel.ts";
 
 export const FEATURE_KEYS = [
   "pathology_reports",

@@ -1,4 +1,4 @@
-import { expandForSegmentMatching } from "@/lib/templates/segment";
+import { expandForSegmentMatching } from "./segment.ts";
 
 export interface ReorderResult {
   text: string;

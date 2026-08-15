@@ -6,10 +6,10 @@
  * etc.), add a new implementation and switch the construction below; no call
  * site changes. Voyage (voyage-4, 1024-dim) is the only implementation today.
  */
-import type { EmbeddingProvider } from "./types";
-import { createVoyageProvider } from "./voyage";
+import type { EmbeddingProvider } from "./types.ts";
+import { createVoyageProvider } from "./voyage.ts";
 
-export type { EmbeddingProvider } from "./types";
+export type { EmbeddingProvider } from "./types.ts";
 
 let cached: EmbeddingProvider | null = null;
 

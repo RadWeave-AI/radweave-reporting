@@ -5,7 +5,7 @@ import test from "node:test";
 const {
   matchQuickStyleReferences,
   prepareQuickReport,
-} = await import("@/lib/reporting/quick-report-generation");
+} = await import("../src/lib/reporting/quick-report-generation.ts");
 
 const USER = { id: "quick-user-123", email: "radiologist@example.com" };
 const BASE_INPUT = {

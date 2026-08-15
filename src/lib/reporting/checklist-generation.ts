@@ -36,25 +36,25 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // value in generateAutoMatchedReport's provider error handling.
 import Anthropic from "@anthropic-ai/sdk";
 
-import { getUserPlan } from "@/lib/stripe/get-user-plan";
+import { getUserPlan } from "../stripe/get-user-plan.ts";
 import {
   getOrCreateUsage,
   reserveCredits,
   refundCredits,
   type CreditCostKey,
-} from "@/lib/usage/credits";
-import { matchTemplates, type MatchInput } from "@/lib/templates/matcher";
-import { buildPrompt } from "@/lib/templates/prompt_builder";
-import { isNormalTemplateRow } from "@/lib/templates/normal-template";
-import { canUseFeature } from "@/lib/features/access";
-import { parseToPrompt } from "@/lib/ai/abbreviation-parser";
-import { loadDatabaseAbbreviations } from "@/lib/ai/database-abbreviations";
-import { calculateAnthropicCost } from "@/lib/ai/anthropic-cost";
-import { isPairedStudyType, normalizeLaterality } from "@/lib/config/laterality";
-import { strip as stripPlaceholderSyntax } from "@/lib/checklists/placeholders";
-import { enforceOpinionOrder } from "@/lib/reporting/opinion-order";
-import { getSkeleton } from "@/lib/skeletons/skeletons";
-import { persistReportUsageWithRetry } from "@/lib/reporting/usage-log-persistence";
+} from "../usage/credits.ts";
+import { matchTemplates, type MatchInput } from "../templates/matcher.ts";
+import { buildPrompt } from "../templates/prompt_builder.ts";
+import { isNormalTemplateRow } from "../templates/normal-template.ts";
+import { canUseFeature } from "../features/access.ts";
+import { parseToPrompt } from "../ai/abbreviation-parser.ts";
+import { loadDatabaseAbbreviations } from "../ai/database-abbreviations.ts";
+import { calculateAnthropicCost } from "../ai/anthropic-cost.ts";
+import { isPairedStudyType, normalizeLaterality } from "../config/laterality.ts";
+import { strip as stripPlaceholderSyntax } from "../checklists/placeholders.ts";
+import { enforceOpinionOrder } from "./opinion-order.ts";
+import { getSkeleton } from "../skeletons/skeletons.ts";
+import { persistReportUsageWithRetry } from "./usage-log-persistence.ts";
 import {
   ALLOWED_MODELS,
   buildCachedSystemBlocks,
@@ -62,7 +62,7 @@ import {
   getAnthropic,
   resolvePartialNormals,
   type AllowedModel,
-} from "@/lib/reporting/kernel";
+} from "./kernel.ts";
 
 /**
  * Post-processing safety net shared by every generation branch in route.ts

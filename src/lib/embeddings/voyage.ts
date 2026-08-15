@@ -9,8 +9,8 @@
  * The API key is read server-side only and is never included in any thrown
  * error or log line.
  */
-import { getServiceConfig } from "@/config";
-import type { EmbeddingProvider } from "./types";
+import { getServiceConfig } from "../../config.ts";
+import type { EmbeddingProvider } from "./types.ts";
 
 const VOYAGE_ENDPOINT = "https://api.voyageai.com/v1/embeddings";
 const VOYAGE_MODEL = "voyage-4";

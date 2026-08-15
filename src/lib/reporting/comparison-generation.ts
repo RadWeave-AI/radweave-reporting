@@ -10,23 +10,23 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { parseToPrompt } from "@/lib/ai/abbreviation-parser";
-import { calculateAnthropicCost } from "@/lib/ai/anthropic-cost";
-import { loadDatabaseAbbreviations } from "@/lib/ai/database-abbreviations";
-import { getSkeleton } from "@/lib/skeletons/skeletons";
-import { getUserPlan } from "@/lib/stripe/get-user-plan";
-import type { MatchInput } from "@/lib/templates/matcher";
+import { parseToPrompt } from "../ai/abbreviation-parser.ts";
+import { calculateAnthropicCost } from "../ai/anthropic-cost.ts";
+import { loadDatabaseAbbreviations } from "../ai/database-abbreviations.ts";
+import { getSkeleton } from "../skeletons/skeletons.ts";
+import { getUserPlan } from "../stripe/get-user-plan.ts";
+import type { MatchInput } from "../templates/matcher.ts";
 import {
   buildComparisonReportPrompt,
   type ComparisonBlock,
   type ComparisonPromptInput,
-} from "@/lib/templates/prompt_builder";
+} from "../templates/prompt_builder.ts";
 import {
   getOrCreateUsage,
   refundCredits,
   reserveCredits,
-} from "@/lib/usage/credits";
-import { enforceOpinionOrder } from "@/lib/reporting/opinion-order";
+} from "../usage/credits.ts";
+import { enforceOpinionOrder } from "./opinion-order.ts";
 import {
   ALLOWED_MODELS,
   buildCachedSystemBlocks,
@@ -34,8 +34,8 @@ import {
   getAnthropic,
   resolvePartialNormals,
   type AllowedModel,
-} from "@/lib/reporting/kernel";
-import { persistReportUsageWithRetry } from "@/lib/reporting/usage-log-persistence";
+} from "./kernel.ts";
+import { persistReportUsageWithRetry } from "./usage-log-persistence.ts";
 
 const CREDIT_MODE = "fast" as const;
 const REPORT_MODE = "comparison";

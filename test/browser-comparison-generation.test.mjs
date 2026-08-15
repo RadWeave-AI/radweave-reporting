@@ -5,7 +5,7 @@ import test from "node:test";
 const {
   normalizeComparisonBlocks,
   prepareComparisonReport,
-} = await import("@/lib/reporting/comparison-generation");
+} = await import("../src/lib/reporting/comparison-generation.ts");
 
 const USER = { id: "comparison-user-123", email: "radiologist@example.com" };
 

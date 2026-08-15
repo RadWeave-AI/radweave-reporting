@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isBetaTester } from "@/lib/beta/access";
-import { getSupabaseService } from "@/lib/reporting/kernel";
-import type { PlanKey } from "@/lib/stripe/config";
+import { isBetaTester } from "../beta/access.ts";
+import { getSupabaseService } from "../reporting/kernel.ts";
+import type { PlanKey } from "./config.ts";
 
 export interface UserSubscription {
   plan:                  PlanKey;

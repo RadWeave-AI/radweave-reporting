@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CustomAbbreviation } from "@/lib/ai/abbreviation-parser";
+import type { CustomAbbreviation } from "./abbreviation-parser.ts";
 
 interface AbbreviationRow {
   abbreviation: string;

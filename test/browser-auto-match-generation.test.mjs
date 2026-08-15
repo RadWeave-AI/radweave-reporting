@@ -3,7 +3,7 @@ import test from "node:test";
 
 const {
   prepareBrowserAutoMatchedReport,
-} = await import("@/lib/reporting/generation-engine");
+} = await import("../src/lib/reporting/generation-engine.ts");
 
 const USER = { id: "browser-user-123", email: "radiologist@example.com" };
 

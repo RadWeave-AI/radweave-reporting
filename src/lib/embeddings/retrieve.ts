@@ -12,7 +12,7 @@
  * retrieval must NEVER break report generation.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getEmbeddingProvider } from "./index";
+import { getEmbeddingProvider } from "./index.ts";
 
 export interface SimilarUserTemplate {
   user_template_id: string;

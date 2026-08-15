@@ -8,12 +8,12 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "dev": "node --import ./test/register-alias.mjs --watch src/dev-server.ts",
-    "start": "node --import ./test/register-alias.mjs src/dev-server.ts",
+    "dev": "node --watch src/dev-server.ts",
+    "start": "node src/dev-server.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import ./test/register-alias.mjs --experimental-test-module-mocks --test test/*.test.ts test/browser-*-generation.test.mjs",
     "test:rls-auth": "node scripts/verify-rls-auth.ts",
-    "test:parity": "node --import ./test/register-alias.mjs scripts/parity-harness.ts"
+    "test:parity": "node scripts/parity-harness.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.98.0",
