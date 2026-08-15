@@ -37,7 +37,7 @@ export function validateFormatReportRequest(value: unknown): FormatReportRequest
 
 export async function formatReport(request: FormatReportRequest): Promise<FormatReportResult> {
   const style = resolveStyle(request.style_id);
-  const model = buildRenderModel(request.report_text, request.report_mode, request.style_id);
+  const model = buildRenderModel(request.report_text, request.report_mode, style);
   const outputs = request.outputs ?? ["html", "plain_text"];
   return {
     html: outputs.includes("html") ? renderHtml(model, style) : undefined,

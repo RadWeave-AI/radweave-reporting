@@ -25,13 +25,14 @@ function renderInlineMarkdown(value: string): string {
 
 function blockText(block: RenderBlock): string {
   const text = block.uppercase ? block.text.toUpperCase() : block.text;
+  if (block.allowInlineBold === false) return escapeHtml(text.replace(/\*\*(.*?)\*\*/g, "$1"));
   return renderInlineMarkdown(text);
 }
 
 function blockStyle(block: RenderBlock, style: ReportStyle): string {
   const declarations = [
     `font-family:${style.fontFamily}, Arial, sans-serif`,
-    `font-size:${style.fontSizePt}pt`,
+    `font-size:${block.fontSizePt ?? style.fontSizePt}pt`,
     `line-height:${style.lineSpacing}`,
     `margin-top:${style.paragraphSpacingBeforePt}pt`,
     `margin-bottom:${style.paragraphSpacingAfterPt}pt`,

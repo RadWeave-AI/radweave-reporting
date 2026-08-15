@@ -43,8 +43,10 @@ export interface RenderBlock {
   text: string;
   alignment: TextAlignment;
   bold: boolean;
+  allowInlineBold?: boolean;
   underline: boolean;
   uppercase: boolean;
+  fontSizePt?: number;
   level?: 0 | 1 | 2;
   marker?: "•" | "-" | "o";
   sourceKind: ParsedLineKind;
@@ -67,6 +69,11 @@ export interface ReportStyle {
   paragraphSpacingAfterPt: number;
   marginsInches: { top: number; right: number; bottom: number; left: number };
   sectionHeadings: { bold: boolean; underline: boolean; uppercase: boolean };
+  sectionContent: {
+    mriTechnique: { bold: boolean; fontSizePt: number };
+    findings: { alignment: TextAlignment; bulletBold: boolean };
+    opinion: { alignment: TextAlignment; bulletBold: boolean };
+  };
   standardBullet: { marker: "•"; indentInches: number; hangingInches: number };
   comparisonBullets: Array<{
     level: 0 | 1 | 2;

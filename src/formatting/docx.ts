@@ -29,11 +29,16 @@ function runs(block: RenderBlock, style: ReportStyle): TextRun[] {
   const add = (text: string, bold: boolean) => result.push(new TextRun({
     text,
     font: style.fontFamily,
-    size: style.fontSizePt * 2,
+    size: (block.fontSizePt ?? style.fontSizePt) * 2,
     bold,
     underline: block.underline ? { type: UnderlineType.SINGLE } : undefined,
     rightToLeft: false,
   }));
+
+  if (block.allowInlineBold === false) {
+    add(value.replace(/\*\*([^*]+)\*\*/g, "$1"), block.bold);
+    return result;
+  }
 
   while ((match = pattern.exec(value)) !== null) {
     if (match.index > lastIndex) add(value.slice(lastIndex, match.index), block.bold);

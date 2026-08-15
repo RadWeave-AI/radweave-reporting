@@ -4,6 +4,7 @@ import type {
   RenderBlock,
   RenderModel,
   ReportMode,
+  ReportStyle,
   StylePath,
 } from "./types.ts";
 
@@ -19,14 +20,14 @@ function splitReportSentences(value: string): string[] {
     .filter(Boolean);
 }
 
-function sectionBlock(line: ParsedLine): RenderBlock {
+function sectionBlock(line: ParsedLine, style: ReportStyle): RenderBlock {
   return {
     kind: "section",
     text: line.text,
     alignment: "left",
-    bold: true,
-    underline: true,
-    uppercase: true,
+    bold: style.sectionHeadings.bold,
+    underline: style.sectionHeadings.underline,
+    uppercase: style.sectionHeadings.uppercase,
     sourceKind: line.kind,
   };
 }
@@ -46,12 +47,12 @@ function bulletMarker(level: 0 | 1 | 2, stylePath: StylePath): "•" | "-" | "o"
 export function buildRenderModel(
   reportText: string,
   reportMode: ReportMode,
-  styleId: string,
+  style: ReportStyle,
 ): RenderModel {
   const parsed = parseReport(reportText);
   const stylePath = stylePathForMode(reportMode);
   const blocks: RenderBlock[] = [];
-  let currentSection: "findings" | "opinion" | "other" | null = null;
+  let currentSection: "technique" | "findings" | "opinion" | "other" | null = null;
 
   for (const line of parsed.lines) {
     if (line.kind === "blank" || line.kind === "separator") continue;
@@ -84,28 +85,44 @@ export function buildRenderModel(
     }
     if (line.kind === "findingsHeader") {
       currentSection = "findings";
-      blocks.push(sectionBlock(line));
+      blocks.push(sectionBlock(line, style));
       continue;
     }
     if (line.kind === "opinionHeader") {
       currentSection = "opinion";
-      blocks.push(sectionBlock(line));
+      blocks.push(sectionBlock(line, style));
       continue;
     }
-    if (line.kind === "techniqueHeader" || line.kind === "sectionHeader") {
+    if (line.kind === "techniqueHeader") {
+      currentSection = "technique";
+      blocks.push(sectionBlock(line, style));
+      continue;
+    }
+    if (line.kind === "sectionHeader") {
       currentSection = "other";
-      blocks.push(sectionBlock(line));
+      blocks.push(sectionBlock(line, style));
       continue;
     }
     if (line.kind === "bullet0" || line.kind === "bullet1" || line.kind === "bullet2") {
       const level = bulletLevel(line, stylePath);
+      const isMriTechnique = currentSection === "technique" && parsed.reportFamily === "MRI";
+      const isStandardFindings = currentSection === "findings" && stylePath === "standard";
+      const sectionRule = currentSection === "findings"
+        ? style.sectionContent.findings
+        : currentSection === "opinion"
+          ? style.sectionContent.opinion
+          : null;
       blocks.push({
         kind: "bullet",
         text: line.text,
-        alignment: "justify",
-        bold: false,
+        alignment: sectionRule?.alignment ?? "justify",
+        bold: isMriTechnique
+          ? style.sectionContent.mriTechnique.bold
+          : sectionRule?.bulletBold ?? false,
+        allowInlineBold: !isStandardFindings,
         underline: false,
         uppercase: false,
+        fontSizePt: isMriTechnique ? style.sectionContent.mriTechnique.fontSizePt : undefined,
         level,
         marker: bulletMarker(level, stylePath),
         sourceKind: line.kind,
@@ -114,12 +131,15 @@ export function buildRenderModel(
     }
 
     if (currentSection === "findings" || currentSection === "opinion") {
+      const sectionRule = style.sectionContent[currentSection];
+      const isStandardFindings = currentSection === "findings" && stylePath === "standard";
       for (const sentence of splitReportSentences(line.text)) {
         blocks.push({
           kind: "bullet",
           text: sentence,
-          alignment: "justify",
-          bold: false,
+          alignment: sectionRule.alignment,
+          bold: sectionRule.bulletBold,
+          allowInlineBold: !isStandardFindings,
           underline: false,
           uppercase: false,
           level: 0,
@@ -130,16 +150,18 @@ export function buildRenderModel(
       continue;
     }
 
+    const isMriTechnique = currentSection === "technique" && parsed.reportFamily === "MRI";
     blocks.push({
       kind: "paragraph",
       text: line.text,
       alignment: parsed.reportFamily === "MRI" ? "left" : "justify",
-      bold: false,
+      bold: isMriTechnique ? style.sectionContent.mriTechnique.bold : false,
       underline: false,
       uppercase: false,
+      fontSizePt: isMriTechnique ? style.sectionContent.mriTechnique.fontSizePt : undefined,
       sourceKind: line.kind,
     });
   }
 
-  return { reportMode, stylePath, styleId, reportFamily: parsed.reportFamily, blocks };
+  return { reportMode, stylePath, styleId: style.id, reportFamily: parsed.reportFamily, blocks };
 }
