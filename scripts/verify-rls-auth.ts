@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
+import { authErrorDetail } from "../src/auth/auth-error.ts";
 import { loadConfig } from "../src/config.ts";
 import {
   assertAuthUid,
@@ -23,13 +24,9 @@ let foreignUserId: string | null = null;
 let fixturesCreated = false;
 let verified = false;
 
-function authErrorDetail(error: unknown): string {
-  if (!error || typeof error !== "object") return "unknown error";
-  const value = error as { name?: string; message?: string; status?: number; cause?: { code?: string; message?: string } };
-  return [value.name, value.status, value.message, value.cause?.code, value.cause?.message]
-    .filter((part) => part !== undefined && part !== "")
-    .join(" | ");
-}
+// authErrorDetail moved to src/auth/auth-error.ts: the service's auth path now
+// formats errors the same way this script always has, and one pattern is
+// easier to read across logs than two.
 
 try {
   const created = await admin.auth.admin.createUser({

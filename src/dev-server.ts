@@ -12,22 +12,18 @@
 
 import { serve } from "@hono/node-server";
 
-import { createApp } from "./app.ts";
-import { createSupabaseTokenVerifier } from "./auth/resolve-caller.ts";
-import { loadConfig } from "./config.ts";
-import { getUserPlan } from "./lib/stripe/get-user-plan.ts";
-import { createServiceRoleClient } from "./supabase/clients.ts";
-import { createRealWorkflow } from "./workflows/real.ts";
+import { bootstrap } from "./bootstrap.ts";
 
-const config = loadConfig();
-const serviceSupabase = createServiceRoleClient(config);
+const { app, config, configError } = bootstrap();
 
-const app = createApp({
-  verifyToken: createSupabaseTokenVerifier(config.supabaseUrl, config.supabaseAnonKey),
-  resolvePlan: async (userId) => (await getUserPlan(userId, serviceSupabase)).plan,
-  createWorkflow: (context) => createRealWorkflow(context, { serviceSupabase }),
-});
+// Locally a misconfiguration should stop you immediately — there is a human
+// watching the terminal, which is not true of a deployed function. The message
+// is the same one /v1/ready would have reported.
+if (configError) {
+  console.error(`radweave-reporting cannot start: ${configError.message}`);
+  process.exit(1);
+}
 
-serve({ fetch: app.fetch, port: config.port }, (info) => {
+serve({ fetch: app.fetch, port: config!.port }, (info) => {
   console.log(`radweave-reporting listening on http://localhost:${info.port}`);
 });

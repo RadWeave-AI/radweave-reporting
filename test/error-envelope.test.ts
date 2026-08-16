@@ -28,6 +28,15 @@ test("the agreed status mapping is exact", () => {
   assert.equal(statusFor("provider-error"), 502);
   assert.equal(statusFor("timeout"), 504);
   assert.equal(statusFor("internal-error"), 500);
+  assert.equal(statusFor("service-unavailable"), 503);
+});
+
+test("service-unavailable is 503, never 401 — it is our fault, not the caller's", () => {
+  // An auth check this service could not complete reports through this
+  // category. Mapping it to 401 tells an integrator their good credential is
+  // bad, which is the failure this category exists to prevent.
+  assert.equal(statusFor("service-unavailable"), 503);
+  assert.notEqual(statusFor("service-unavailable"), statusFor("unauthorized"));
 });
 
 test("an envelope always carries ok:false, the category, a message and a request id", () => {

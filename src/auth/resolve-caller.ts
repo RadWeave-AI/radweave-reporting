@@ -19,6 +19,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+import { authErrorDetail, classifyTokenFailure, type TokenFailure } from "./auth-error.ts";
 import {
   authFailure,
   type AuthResult,
@@ -29,12 +30,47 @@ import {
 const BEARER = "Bearer ";
 const API_KEY = "ApiKey ";
 
+export interface VerifiedUser {
+  id: string;
+  email: string | null;
+}
+
+/**
+ * What a verifier learned. The failure branch carries WHY, which the previous
+ * `null` return could not: every distinct cause arrived here as the same empty
+ * value and left as the same 401.
+ */
+export type TokenVerification =
+  | { ok: true; user: VerifiedUser }
+  | { ok: false; failure: TokenFailure };
+
+/**
+ * Verifiers may also return the older shape — a user, or `null` for "no" —
+ * which normalises to an `invalid` failure. Kept because a verifier that
+ * cannot distinguish causes is still a legitimate verifier (every test double
+ * is one), and forcing them all to construct a `TokenFailure` would add noise
+ * without adding information.
+ */
+export type TokenVerifierResult = TokenVerification | VerifiedUser | null;
+
 /**
  * Verifies a Supabase access token and returns the user it belongs to.
  * Injectable so tests never reach the network.
  */
 export interface TokenVerifier {
-  (token: string): Promise<{ id: string; email: string | null } | null>;
+  (token: string): Promise<TokenVerifierResult>;
+}
+
+/** Widens either accepted return shape to the one the resolver reasons about. */
+export function normalizeVerification(result: TokenVerifierResult): TokenVerification {
+  if (result === null || result === undefined) {
+    return {
+      ok: false,
+      failure: { kind: "invalid", detail: "verifier returned no user and no reason" },
+    };
+  }
+  if ("ok" in result) return result;
+  return { ok: true, user: result };
 }
 
 /** Resolves a caller's subscription plan. Stubbed until the real lookup lands. */
@@ -55,6 +91,11 @@ export interface ApiKeyResolver {
 /**
  * Default token verifier: a plain, cookie-free Supabase client. `persistSession`
  * is off because this process is stateless and must never accumulate sessions.
+ *
+ * Every failure exit carries its cause. `getUser(token)` is a network call —
+ * auth-js has no local verification path — so "the token is bad" and "we never
+ * reached Supabase" arrive here through the same return value and must be told
+ * apart before either is reported.
  */
 export function createSupabaseTokenVerifier(
   supabaseUrl: string,
@@ -63,13 +104,44 @@ export function createSupabaseTokenVerifier(
 ): TokenVerifier {
   let client: SupabaseClient | null = null;
 
-  return async (token: string) => {
-    client ??= clientFactory(supabaseUrl, supabaseAnonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-    const { data, error } = await client.auth.getUser(token);
-    if (error || !data.user) return null;
-    return { id: data.user.id, email: data.user.email ?? null };
+  return async (token: string): Promise<TokenVerification> => {
+    if (client === null) {
+      try {
+        client = clientFactory(supabaseUrl, supabaseAnonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+      } catch (error) {
+        // A malformed SUPABASE_URL or an empty key throws here. Left uncaught
+        // this became a bare 500 with no cause in the log; it is a
+        // configuration fault and is reported as one. `client` stays null so a
+        // corrected redeploy is picked up rather than cached as broken.
+        return {
+          ok: false,
+          failure: {
+            kind: "upstream",
+            detail: `supabase client construction failed: ${authErrorDetail(error)}`,
+          },
+        };
+      }
+    }
+
+    try {
+      const { data, error } = await client.auth.getUser(token);
+      if (error) return { ok: false, failure: classifyTokenFailure(error, token) };
+      if (!data.user) {
+        return {
+          ok: false,
+          failure: {
+            kind: "invalid",
+            detail: "supabase returned neither a user nor an error",
+          },
+        };
+      }
+      return { ok: true, user: { id: data.user.id, email: data.user.email ?? null } };
+    } catch (thrown) {
+      // auth-js re-throws anything that is not an AuthError.
+      return { ok: false, failure: classifyTokenFailure(thrown, token) };
+    }
   };
 }
 
@@ -119,14 +191,38 @@ export async function resolveCaller(
       );
     }
 
-    const user = await verifyToken(token);
-    if (!user) {
+    const verification = normalizeVerification(await verifyToken(token));
+    if (!verification.ok) {
+      const { kind, detail } = verification.failure;
+
+      if (kind === "upstream") {
+        // NOT 401. Nothing has been established about this credential, so
+        // blaming it would be a guess — and the one time it was guessed, three
+        // debugging cycles went into a token that was fine all along.
+        return authFailure(
+          "verification-unavailable",
+          "Access token verification is temporarily unavailable. This is a fault " +
+            "in this service, not in the credential supplied. Retry shortly.",
+          detail,
+        );
+      }
+
+      if (kind === "expired") {
+        return authFailure(
+          "expired-credential",
+          "The supplied access token has expired. Obtain a fresh access token and retry.",
+          detail,
+        );
+      }
+
       return authFailure(
         "invalid-credential",
         "The supplied access token is not valid.",
+        detail,
       );
     }
 
+    const { user } = verification;
     const plan = deps.resolvePlan ? await deps.resolvePlan(user.id) : "free";
     const principal: UserPrincipal = {
       kind: "user",

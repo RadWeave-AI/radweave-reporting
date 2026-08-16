@@ -21,6 +21,12 @@ export const ERROR_CATEGORIES = [
   "timeout",
   "aborted",
   "internal-error",
+  // A dependency this service needs is unreachable or misconfigured. Distinct
+  // from provider-error (the model provider failed mid-work) and from
+  // internal-error (a bug): this one says "our configuration or our network,
+  // not your request" — and is what an auth failure we could not complete
+  // reports, instead of a 401 blaming the caller's credential.
+  "service-unavailable",
 ] as const;
 
 export type ErrorCategory = (typeof ERROR_CATEGORIES)[number];
@@ -39,6 +45,7 @@ export const ERROR_STATUS: Record<ErrorCategory, number> = {
   // (the caller is gone by definition), but it keeps proxy logs honest.
   aborted: 499,
   "internal-error": 500,
+  "service-unavailable": 503,
 };
 
 /** Optional, category-specific fields. Never include provider-raw detail. */

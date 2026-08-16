@@ -37,13 +37,29 @@ export type AuthFailureReason =
   | "missing-credential"
   | "malformed-credential"
   | "invalid-credential"
+  /** The credential was well-formed and genuine, but its `exp` has passed. */
+  | "expired-credential"
   | "unsupported-scheme"
+  /**
+   * We could not determine whether the credential is valid — the identity
+   * provider was unreachable, or rejected OUR key rather than the caller's
+   * token. This is a fault in this service, and must never be reported as a
+   * 401: telling an integrator their good token is bad has cost real days.
+   */
+  | "verification-unavailable"
   | "not-implemented";
 
 export interface AuthFailure {
   ok: false;
   reason: AuthFailureReason;
+  /** Caller-facing. Must stay free of anything a stranger should not learn. */
   message: string;
+  /**
+   * Server-log-only detail: the underlying error's name, status, code, message
+   * and cause. Deliberately separate from `message` so that returning one can
+   * never leak the other — `errorEnvelope` has no channel for this field.
+   */
+  detail?: string;
 }
 
 export interface AuthSuccess {
@@ -53,6 +69,12 @@ export interface AuthSuccess {
 
 export type AuthResult = AuthSuccess | AuthFailure;
 
-export function authFailure(reason: AuthFailureReason, message: string): AuthFailure {
-  return { ok: false, reason, message };
+export function authFailure(
+  reason: AuthFailureReason,
+  message: string,
+  detail?: string,
+): AuthFailure {
+  return detail === undefined
+    ? { ok: false, reason, message }
+    : { ok: false, reason, message, detail };
 }

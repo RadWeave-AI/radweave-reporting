@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  normalizeVerification,
   parseApiKey,
   resolveCaller,
   unimplementedApiKeyResolver,
@@ -95,6 +96,67 @@ test("never derives identity from anything but the verified credential", async (
 
   assert.ok(result.ok && result.principal.kind === "user");
   assert.equal(result.principal.userId, "from-token");
+});
+
+// ── Failure classes are distinguishable, not one generic 401 ─────────────────
+
+test("an expired token is reported as expired rather than invalid", async () => {
+  const result = await resolveCaller(`Bearer ${VALID_TOKEN}`, {
+    verifyToken: async () => ({
+      ok: false as const,
+      failure: { kind: "expired" as const, detail: "AuthApiError | 401 | bad_jwt" },
+    }),
+  });
+
+  assert.ok(!result.ok);
+  assert.equal(result.reason, "expired-credential");
+  assert.match(result.message, /expired/i);
+});
+
+test("a verification we could not complete is OUR fault, never the caller's", async () => {
+  // The bug this whole change exists to kill: a token we failed to check being
+  // reported as a token that failed the check.
+  const result = await resolveCaller(`Bearer ${VALID_TOKEN}`, {
+    verifyToken: async () => ({
+      ok: false as const,
+      failure: {
+        kind: "upstream" as const,
+        detail: "AuthRetryableFetchError | 0 | fetch failed | ENOTFOUND",
+      },
+    }),
+  });
+
+  assert.ok(!result.ok);
+  assert.equal(result.reason, "verification-unavailable");
+  assert.notEqual(result.reason, "invalid-credential");
+  assert.match(result.message, /not in the credential supplied/i);
+});
+
+test("the underlying cause is carried for the log and kept out of the message", async () => {
+  const result = await resolveCaller(`Bearer ${VALID_TOKEN}`, {
+    verifyToken: async () => ({
+      ok: false as const,
+      failure: { kind: "upstream" as const, detail: "ENOTFOUND | db.wrong-ref.supabase.co" },
+    }),
+  });
+
+  assert.ok(!result.ok);
+  assert.equal(result.detail, "ENOTFOUND | db.wrong-ref.supabase.co");
+  // A stranger learns nothing about our hostnames or our keys.
+  assert.doesNotMatch(result.message, /ENOTFOUND|supabase/i);
+});
+
+test("a verifier that only knows yes-or-no still works, and means invalid", async () => {
+  // Every test double in this repo is such a verifier. The richer shape is an
+  // addition, not a migration.
+  assert.deepEqual(normalizeVerification({ id: "u", email: null }), {
+    ok: true,
+    user: { id: "u", email: null },
+  });
+
+  const failure = normalizeVerification(null);
+  assert.ok(!failure.ok);
+  assert.equal(failure.failure.kind, "invalid");
 });
 
 // ── ApiKey path (scaffolded, deliberately not functional) ────────────────────

@@ -41,9 +41,12 @@ const CHILD_ENV = {
   ANTHROPIC_API_KEY: "test-anthropic-key",
 };
 
-async function bootUnderPlainNode() {
-  const { stdout } = await run(process.execPath, [PROBE], {
-    env: CHILD_ENV,
+async function bootUnderPlainNode(
+  path = "/v1/health",
+  env: NodeJS.ProcessEnv = CHILD_ENV,
+) {
+  const { stdout } = await run(process.execPath, [PROBE, path], {
+    env,
     cwd: REPO_ROOT,
   });
   const line = stdout.trim().split("\n").at(-1);
@@ -80,4 +83,46 @@ test("no module resolves through a path alias or an extensionless specifier", as
     "ERR_MODULE_NOT_FOUND",
     "a specifier is unresolvable without the test loader — this is the production bug",
   );
+});
+
+// ── A deployment missing a variable must still be able to say so ─────────────
+//
+// Second production incident this file now pins. loadConfig() runs at module
+// scope, so a missing variable used to throw at import time: the function
+// answered every request with an opaque platform error naming nothing. The
+// entry point now boots into a diagnostic-only mode instead.
+
+const { SUPABASE_URL: _omitted, ...WITHOUT_SUPABASE_URL } = CHILD_ENV;
+const INCOMPLETE_ENV: NodeJS.ProcessEnv = {
+  ...WITHOUT_SUPABASE_URL,
+  DIAGNOSTICS_KEY: "probe-key",
+};
+
+test("a missing environment variable does not crash the entry point at import", async () => {
+  const result = await bootUnderPlainNode("/v1/health", INCOMPLETE_ENV);
+
+  assert.equal(result.error, null, "a misconfigured deployment must still answer");
+  assert.equal(result.booted, true);
+});
+
+test("a misconfigured deployment reports 503 on health, not a misleading 200", async () => {
+  const result = await bootUnderPlainNode("/v1/health", INCOMPLETE_ENV);
+
+  assert.equal(result.status, 503);
+  assert.equal(result.body.error, "service-unavailable");
+  assert.match(result.body.message, /\/v1\/ready/);
+});
+
+test("/v1/ready names the missing variable on the real production boot path", async () => {
+  const result = await bootUnderPlainNode("/v1/ready", {
+    ...INCOMPLETE_ENV,
+    PROBE_HEADERS: JSON.stringify({ "x-diagnostics-key": "probe-key" }),
+  });
+
+  assert.equal(result.status, 503);
+  assert.equal(result.body.config.ok, false);
+  assert.match(result.body.config.detail, /SUPABASE_URL/);
+  assert.equal(result.body.config.variables.SUPABASE_URL, false);
+  // No dependency was dialled — there is no configuration to dial with.
+  assert.ok(result.body.dependencies.every((d: { status: string }) => d.status === "skipped"));
 });

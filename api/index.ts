@@ -17,24 +17,13 @@
  * functions. See test/vercel-entry.test.ts, which pins this shape.
  */
 
-import { createApp } from "../src/app.ts";
-import { createSupabaseTokenVerifier } from "../src/auth/resolve-caller.ts";
-import { loadConfig } from "../src/config.ts";
-import { getUserPlan } from "../src/lib/stripe/get-user-plan.ts";
-import { createServiceRoleClient } from "../src/supabase/clients.ts";
-import { createRealWorkflow } from "../src/workflows/real.ts";
+import { bootstrap } from "../src/bootstrap.ts";
 
-const serviceConfig = loadConfig();
-const serviceSupabase = createServiceRoleClient(serviceConfig);
-
-const app = createApp({
-  verifyToken: createSupabaseTokenVerifier(
-    serviceConfig.supabaseUrl,
-    serviceConfig.supabaseAnonKey,
-  ),
-  resolvePlan: async (userId) => (await getUserPlan(userId, serviceSupabase)).plan,
-  createWorkflow: (context) => createRealWorkflow(context, { serviceSupabase }),
-});
+// Wiring lives in src/bootstrap.ts so this entry and the dev server cannot
+// drift apart. It never throws: a misconfigured deployment boots into a
+// diagnostic-only mode rather than answering every request with an opaque
+// platform crash.
+const { app } = bootstrap();
 
 export default {
   fetch(request: Request): Response | Promise<Response> {

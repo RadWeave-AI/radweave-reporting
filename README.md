@@ -25,6 +25,7 @@ npm run dev       # needs every variable in .env.example
 | Method | Path | Status |
 |---|---|---|
 | GET | `/v1/health` | live (public) |
+| GET | `/v1/ready` | live (deep check, `DIAGNOSTICS_KEY` header) |
 | GET | `/v1/credits` | live shape, stub balances |
 | POST | `/v1/reports/checklist` | real generation |
 | POST | `/v1/reports/quick` | real generation |
@@ -46,6 +47,50 @@ Authorization: ApiKey <key-id>.<secret>   → OrgPrincipal    (scaffolded, 501)
 The Bearer path validates the token directly against Supabase Auth with
 `getUser(token)` — cookie-free, so the website (server-side) and Desktop use
 the identical mechanism. Desktop needs no new credential type.
+
+`getUser(token)` is always a network call: `@supabase/auth-js` has no local
+verification path. So "this token is bad" and "we never reached Supabase"
+arrive as the same return value, and are told apart before either is reported:
+
+| Failure | Caller sees | Server log |
+|---|---|---|
+| `exp` has passed | 401, "has expired … obtain a fresh access token" | cause |
+| token rejected, our key accepted | 401, "is not valid" | cause |
+| Supabase unreachable, our anon key rejected, client unbuildable | **503** `service-unavailable` | full cause at error level |
+
+The 503 case is the important one. A token this service could not *check* has
+told us nothing about the credential, so answering 401 blames the caller for
+our own misconfiguration — that mistake cost three multi-hour debugging
+cycles. The underlying `name | status | code | message | cause` is written to
+the runtime log with the request id on every failure; the caller never sees a
+hostname, a key, or an upstream message.
+
+### Readiness
+
+`/v1/health` is liveness only: public, fast, no network calls (503 if
+configuration failed to load, so a broken deploy is never a green 200).
+
+`/v1/ready` proves the credentials actually work — one real, cheap, read-only
+call each to Supabase Auth via the anon key, Supabase service-role against
+`subscriptions`, and Anthropic's `models.list` (free; no generation is
+billed). It reports per-dependency status with the specific cause.
+
+```bash
+curl -H "X-Diagnostics-Key: $DIAGNOSTICS_KEY" https://<host>/v1/ready
+```
+
+Guarded by a dedicated `DIAGNOSTICS_KEY` header rather than a Bearer token, on
+purpose: the endpoint exists to diagnose a broken auth path, so gating it
+behind that path would make it useless exactly when it is needed. A missing or
+wrong key answers **404**, identical to any unknown route, so the endpoint
+cannot be found by probing; with `DIAGNOSTICS_KEY` unset it does not exist.
+Output carries presence booleans and the Supabase *hostname* — never a secret.
+
+A deployment whose configuration fails to load boots into diagnostics-only
+mode rather than throwing at import time. `loadConfig` still fails loudly, but
+a Vercel function that throws at module scope answers every request with an
+opaque platform error naming nothing; this way `/v1/ready` names the missing
+variable. `src/bootstrap.ts` is the single wiring path for both entry points.
 
 **Still missing for the ApiKey path:** an `api_clients` table (key id, secret
 hash, org id, plan, scopes, revoked-at), key issuance/revocation, constant-time
@@ -86,6 +131,7 @@ Every failure, in both transports:
 | `internal-error` | 500 |
 | `not-implemented` | 501 |
 | `provider-error` | 502 |
+| `service-unavailable` | 503 |
 | `timeout` | 504 |
 
 Pre-flight failures (auth, validation, rate limit, credits) are HTTP errors in
@@ -124,10 +170,13 @@ could terminate a valid report mid-stream. Vercel Fluid Compute defaults to
 ```
 api/index.ts              Vercel entry (hono/vercel, Node runtime)
 src/dev-server.ts         local dev server (@hono/node-server)
+src/bootstrap.ts          the single wiring path for both entry points
 src/app.ts                routes, auth middleware, error mapping
 src/config.ts             fail-loud env loading (no .env.local fallback)
 src/auth/principal.ts     Principal / AuthResult types
 src/auth/resolve-caller.ts  the single authentication entry point
+src/auth/auth-error.ts    auth error detail + failure classification
+src/health/readiness.ts   live per-dependency credential checks
 src/http/errors.ts        error categories, status map, envelope
 src/http/transport.ts     Accept-driven SSE vs blocking dispatch
 src/workflows/types.ts    transport-neutral workflow contract
