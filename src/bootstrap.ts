@@ -19,7 +19,8 @@ import { createSupabaseTokenVerifier } from "./auth/resolve-caller.ts";
 import { loadConfig, type ServiceConfig } from "./config.ts";
 import { buildReadinessReport } from "./health/readiness.ts";
 import { getUserPlan } from "./lib/stripe/get-user-plan.ts";
-import { createServiceRoleClient } from "./supabase/clients.ts";
+import { listTemplateCatalog } from "./lib/templates/catalog-list.ts";
+import { assertAuthUid, createRlsUserClient, createServiceRoleClient } from "./supabase/clients.ts";
 import { createRealWorkflow } from "./workflows/real.ts";
 
 export interface Bootstrapped {
@@ -61,11 +62,22 @@ export function bootstrap(env: NodeJS.ProcessEnv = process.env): Bootstrapped {
   }
 
   const supabase = serviceSupabase;
+  const loadedConfig = config;
   return {
     app: createApp({
       verifyToken: createSupabaseTokenVerifier(config.supabaseUrl, config.supabaseAnonKey),
       resolvePlan: async (userId) => (await getUserPlan(userId, supabase)).plan,
       createWorkflow: (context) => createRealWorkflow(context, { serviceSupabase: supabase }),
+      // The shared library is read service-role (it is global and has no
+      // owner column); the caller's own templates are read through a client
+      // carrying THEIR verified JWT, so the database enforces auth.uid()
+      // itself. assertAuthUid fails closed if that client somehow resolves a
+      // different user than the one the token authenticated.
+      listTemplates: async ({ principal, modality }) => {
+        const userClient = createRlsUserClient(loadedConfig, principal.accessToken);
+        await assertAuthUid(userClient, principal.userId);
+        return listTemplateCatalog(supabase, userClient, { id: principal.userId }, { modality });
+      },
       diagnosticsKey,
       buildReadiness,
     }),

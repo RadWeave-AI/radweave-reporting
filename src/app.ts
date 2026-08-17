@@ -25,8 +25,9 @@ import {
   type PlanResolver,
   type TokenVerifier,
 } from "./auth/resolve-caller.ts";
-import type { AuthFailure, AuthFailureReason, Principal } from "./auth/principal.ts";
+import type { AuthFailure, AuthFailureReason, Principal, UserPrincipal } from "./auth/principal.ts";
 import { formatReport, validateFormatReportRequest } from "./formatting/index.ts";
+import type { TemplateCatalogResult } from "./lib/templates/catalog-list.ts";
 import type { ReadinessReport } from "./health/readiness.ts";
 import { ServiceError, errorEnvelope, statusFor, type ErrorCategory } from "./http/errors.ts";
 import { respond } from "./http/transport.ts";
@@ -41,11 +42,29 @@ export interface WorkflowContext {
   signal: AbortSignal;
 }
 
+/**
+ * A catalogue read on behalf of one verified end user.
+ *
+ * The principal is the ONLY source of identity — there is no user id field
+ * here for a caller to supply, by construction.
+ */
+export interface TemplateCatalogContext {
+  principal: UserPrincipal;
+  modality?: string;
+}
+
 export interface AppDeps {
   verifyToken?: TokenVerifier;
   resolvePlan?: PlanResolver;
   resolveApiKey?: ApiKeyResolver;
   createWorkflow?: (context: WorkflowContext) => WorkflowRun | Promise<WorkflowRun>;
+  /**
+   * Backs `GET /v1/templates`. Injected so tests never reach Supabase, and so
+   * this module stays free of database clients. Unset means the endpoint
+   * answers not-implemented rather than pretending to have an empty catalogue
+   * — an empty list and an unconfigured service must not look alike.
+   */
+  listTemplates?: (context: TemplateCatalogContext) => Promise<TemplateCatalogResult>;
   /**
    * Set when configuration could not be loaded. The app still starts, so the
    * deployment can SAY what is wrong instead of crashing at import time and
@@ -239,6 +258,66 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: Vars }> {
   app.use("/v1/format", authenticate);
   app.use("/v1/reviews/*", authenticate);
   app.use("/v1/credits", authenticate);
+  app.use("/v1/templates", authenticate);
+
+  /**
+   * The account's template catalogue: the shared RadWeave library plus the
+   * caller's own templates, each carrying its REAL database id.
+   *
+   * Read-only. No credit is consumed and nothing is written, so a client may
+   * call it on study open and on manual refresh.
+   *
+   * Why the ids matter: RadWeave Desktop otherwise shows a frozen local
+   * snapshot whose entries have no database identity, and it fail-closed
+   * refuses to generate against a template it cannot name to the server. This
+   * endpoint is what lets it name one.
+   */
+  app.get("/v1/templates", async (c) => {
+    const principal = c.get("principal");
+    if (principal.kind !== "user") {
+      // An organization key authenticates a customer, not a person, so there
+      // is no "own templates" to scope and no plan-holder to gate against.
+      // Saying so is better than returning a half-answer.
+      throw new ServiceError(
+        "not-implemented",
+        "The template catalogue is available to user credentials only.",
+      );
+    }
+    if (!deps.listTemplates) {
+      throw new ServiceError(
+        "not-implemented",
+        "No template catalogue is configured for this service.",
+      );
+    }
+
+    const raw = c.req.query("modality")?.trim();
+    if (raw !== undefined && raw.length > 64) {
+      throw new ServiceError("validation-error", "modality is too long.");
+    }
+    const modality = raw || undefined;
+
+    let result: TemplateCatalogResult;
+    try {
+      result = await deps.listTemplates({ principal, modality });
+    } catch (error) {
+      // The caller gets a generic message on purpose: the underlying error can
+      // name database internals. The cause is logged instead, with the request
+      // id so a specific report can be traced — and never the template text,
+      // the user id, or the token.
+      console.error("[radweave-reporting] template catalogue lookup failed", {
+        requestId: c.get("requestId"),
+        detail: error instanceof Error ? error.message : String(error),
+      });
+      throw new ServiceError("provider-error", "Templates could not be loaded.");
+    }
+
+    return c.json({
+      ok: true,
+      request_id: c.get("requestId"),
+      counts: result.counts,
+      templates: result.templates,
+    });
+  });
 
   app.get("/v1/credits", (c) => {
     const principal = c.get("principal");
