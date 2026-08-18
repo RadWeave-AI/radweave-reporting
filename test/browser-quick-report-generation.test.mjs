@@ -566,8 +566,10 @@ test("opinion hints run before marker removal/deduplication/whitespace cleanup a
     opinion_hints: "- **Selected pathology.**",
     residual_opinion_hints: "- **Residual normal.**",
   });
+  // Re-emitted with "•", matching the bullets Quick Report's own prompt asks
+  // for. Dashes here would contradict the FINDINGS section of the same report.
   assert.equal(scenario.calls.reorder[0].text,
-    "MRI FINDINGS:\n- Finding.\n\nOPINION:\n\n- **Selected pathology.**\n- **AI only.**\n- **Residual normal.**");
+    "MRI FINDINGS:\n- Finding.\n\nOPINION:\n\n• **Selected pathology.**\n• **AI only.**\n• **Residual normal.**");
 });
 
 test("ambiguous reorder output is preserved exactly", async () => {
@@ -582,4 +584,59 @@ test("Quick orchestration has no style-profile, personal-template, similar-repor
   const source = await readFile(new URL("../src/lib/reporting/quick-report-generation.ts", import.meta.url), "utf8");
   assert.doesNotMatch(source, /retrieveSimilarUserTemplates|user_reporting_style_profiles|loadDatabaseAbbreviations/);
   assert.match(source, /parseToPromptFn\([\s\S]*?\[\]/);
+});
+
+// ── Bullet-marker recognition ────────────────────────────────────────────────
+// Quick Report's prompt asks the model for "• " bullets. The post-processing
+// that reads that output back originally matched "- " only, which did not
+// corrupt anything but silently disabled OPINION de-duplication and bullet
+// reordering — the worst kind of failure, because nothing surfaced. These pin
+// that both markers are now recognised, including mixed within one report.
+
+test("OPINION duplicates written with • bullets are de-duplicated", async () => {
+  const scenario = happyScenario({
+    anthropic: { messages: { stream() { return fakeAnthropicStream([
+      "MRI FINDINGS:\n• Finding.\n\nOPINION:\n• ACL sprain.\n• ACL sprain.\n• Meniscus tear.",
+    ]); } } },
+    reorderQuickReportBullets: (text) => ({ text, reordered: false, ambiguous: false }),
+  });
+  const { events } = await prepareAndRun(scenario);
+
+  const report = events.at(-1).data.final_report;
+  const aclLines = report.split("\n").filter((line) => line.trim() === "• ACL sprain.");
+  assert.equal(aclLines.length, 1, "the duplicate • OPINION bullet must be removed");
+  assert.match(report, /• Meniscus tear\./);
+});
+
+test("OPINION duplicates written with - bullets are still de-duplicated", async () => {
+  // The legacy marker must keep working — one report can contain both.
+  const scenario = happyScenario({
+    anthropic: { messages: { stream() { return fakeAnthropicStream([
+      "MRI FINDINGS:\n- Finding.\n\nOPINION:\n- ACL sprain.\n- ACL sprain.",
+    ]); } } },
+    reorderQuickReportBullets: (text) => ({ text, reordered: false, ambiguous: false }),
+  });
+  const { events } = await prepareAndRun(scenario);
+
+  const report = events.at(-1).data.final_report;
+  assert.equal(report.split("\n").filter((line) => line.trim() === "- ACL sprain.").length, 1);
+});
+
+test("a mixed-marker report de-duplicates across both markers", async () => {
+  // enforceOpinionOrder can leave OPINION on one marker while FINDINGS uses the
+  // other, so the same opinion stated twice under different markers is still
+  // one duplicate.
+  const scenario = happyScenario({
+    anthropic: { messages: { stream() { return fakeAnthropicStream([
+      "MRI FINDINGS:\n• Finding.\n\nOPINION:\n• ACL sprain.\n- ACL sprain.",
+    ]); } } },
+    reorderQuickReportBullets: (text) => ({ text, reordered: false, ambiguous: false }),
+  });
+  const { events } = await prepareAndRun(scenario);
+
+  const opinionBullets = events.at(-1).data.final_report
+    .split("OPINION:")[1]
+    .split("\n")
+    .filter((line) => line.trim().length > 0);
+  assert.equal(opinionBullets.length, 1, "same opinion under two markers is one bullet");
 });

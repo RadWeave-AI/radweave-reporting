@@ -22,12 +22,22 @@ import {
 // string in each file and confirming the masked content hashed identically
 // before and after. Clinical and prompt logic is unchanged; only these pins
 // moved.
+//
+// Re-pinned a second time, for quick-report-generation.ts ONLY, to complete the
+// standard-mode • marker work already recorded in DELIBERATE_DIVERGENCE_HASHES
+// below. That change made the four standard modes ASK for "•" bullets, but the
+// code that reads the model's output back was left matching "- " only, so for
+// Quick Report the OPINION de-duplication silently stopped firing and the
+// re-emitted OPINION section was rewritten back to dashes. This re-pin covers
+// two post-processing edits — cleanQuickReport now accepts either marker, and
+// enforceOpinionOrder is asked to re-emit "•". No prompt text, no clinical
+// rule, and no other workflow's behavior changed.
 const SOURCE_HASHES = {
   "src/lib/ai/strict-style.ts": "cd923037c117036ca9a2094ab1ccf1cc13aec97d81dd1475c9d9da65bf7c3696",
   "src/lib/templates/my_template_quality_check.ts": "491c7be875b400ca64db81efbe6fd1627d449eaec25e89fc47150489e0c0c1bd",
   "src/lib/reporting/checklist-generation.ts": "4f3590f76ad1e8aca2636a7f9584507f41fab834ca237ffeff616f88b8630239",
   "src/lib/reporting/comparison-generation.ts": "cf64f0edf8d124d296e1252d65ee44557ce8e3ca941ed834cbaf407730aaebcb",
-  "src/lib/reporting/quick-report-generation.ts": "4d97675ebcda97479c1b615be4fd2ede7baac40e99519d62f34d6f9e6251664e",
+  "src/lib/reporting/quick-report-generation.ts": "282c0fe0e82ee709dfb640fda60e6873a442079435f428d576417f264427e5b3",
   "src/lib/reporting/my-template-generation.ts": "7ebdc6b1f3dad682102db9dd24b4ee581c41e741d6b8e5bcfb77045dc49f6e34",
   "src/lib/reporting/template-guided-generation.ts": "521ec0ee8cf3542170bfbafa1da4caf7dd0d40928b5d05f7dd859e1f47ad1583",
 } as const;

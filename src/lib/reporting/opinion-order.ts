@@ -1,3 +1,14 @@
+/**
+ * Bullet marker this function re-emits OPINION lines with.
+ *
+ * It defaults to "-" so every existing caller keeps byte-identical output.
+ * Only Quick Report passes "•", because Quick is the workflow instructed to
+ * write "•" bullets — without this it would have its own bullets silently
+ * rewritten to dashes here, since the reader below accepts both markers but
+ * the writer previously hardcoded one.
+ */
+export type OpinionBulletMarker = "-" | "•";
+
 function normalizeOpinionLine(line: string) {
   return line
     .replace(/^\s*[-•]\s*/, "")
@@ -16,7 +27,8 @@ function normalizedOpinionKey(line: string) {
 export function enforceOpinionOrder(
   report: string,
   opinionHints: string,
-  residualOpinionHints = ""
+  residualOpinionHints = "",
+  bulletMarker: OpinionBulletMarker = "-"
 ) {
   // Preserve the established behavior byte-for-byte when no residual bucket is supplied.
   if (!residualOpinionHints.trim()) {
@@ -38,7 +50,7 @@ export function enforceOpinionOrder(
     const remaining = existing.filter((line) =>
       !orderedKeys.has(line.toLowerCase().replace(/[.\s]+$/g, ""))
     );
-    const opinion = [...ordered, ...remaining].map((line) => `- **${line}**`).join("\n");
+    const opinion = [...ordered, ...remaining].map((line) => `${bulletMarker} **${line}**`).join("\n");
     return report.replace(pattern, `$1\n${opinion}`);
   }
 
@@ -61,7 +73,7 @@ export function enforceOpinionOrder(
   const nonAiKeys = new Set([...ordered, ...residuals].map(normalizedOpinionKey));
   const remaining = existing.filter((line) => !nonAiKeys.has(normalizedOpinionKey(line)));
   const opinion = [...ordered, ...remaining, ...residuals]
-    .map((line) => `- **${line}**`)
+    .map((line) => `${bulletMarker} **${line}**`)
     .join("\n");
   return report.replace(pattern, `$1\n${opinion}`);
 }

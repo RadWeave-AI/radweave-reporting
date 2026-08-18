@@ -1,5 +1,25 @@
 import { expandForSegmentMatching } from "./segment.ts";
 
+/**
+ * Bullet markers a generated report may legitimately use.
+ *
+ * Both are live at once and a single report can contain BOTH: Quick Report is
+ * instructed to write "• ", but `enforceOpinionOrder` runs first and re-emits
+ * the OPINION section using the marker it is given. So FINDINGS can be "• "
+ * while OPINION is "- " in the same document.
+ *
+ * Recognising only "- " here does not corrupt anything — `parseReport` simply
+ * fails to find a bullet run and the report passes through untouched — but it
+ * silently disables reordering and OPINION de-duplication, which is worse than
+ * an error because nothing surfaces.
+ */
+const BULLET_PREFIXES = ["- ", "• "] as const;
+
+/** True when a trimmed line opens with any recognised bullet marker. */
+function startsWithBullet(trimmed: string): boolean {
+  return BULLET_PREFIXES.some((prefix) => trimmed.startsWith(prefix));
+}
+
 export interface ReorderResult {
   text: string;
   reordered: boolean;
@@ -77,7 +97,7 @@ function isBlank(line: SourceLine): boolean {
 }
 
 function isBullet(line: SourceLine): boolean {
-  return line.content.trim().startsWith("- ");
+  return startsWithBullet(line.content.trim());
 }
 
 function foldContinuationLines(lines: SourceLine[]): SourceLine[] {
@@ -97,7 +117,7 @@ function foldContinuationLines(lines: SourceLine[]): SourceLine[] {
       bulletIndex !== null
       && /^[ \t]/.test(line.content)
       && trimmed.length > 0
-      && !trimmed.startsWith("- ")
+      && !startsWithBullet(trimmed)
       && !HEADER_LINE.test(trimmed)
     ) {
       folded[bulletIndex].content += ` ${trimmed}`;
@@ -219,7 +239,10 @@ function tokenize(text: string): string[] {
 
 function bulletText(unit: string): string {
   const firstLine = splitSourceLines(unit)[0]?.content.trim() ?? "";
-  let text = firstLine.startsWith("- ") ? firstLine.slice(2).trim() : firstLine;
+  // Strip by the matched prefix's own length rather than a hardcoded 2, so this
+  // stays correct if a longer marker is ever added.
+  const prefix = BULLET_PREFIXES.find((candidate) => firstLine.startsWith(candidate));
+  let text = prefix ? firstLine.slice(prefix.length).trim() : firstLine;
   if (text.startsWith("**") && text.endsWith("**") && text.length >= 4) {
     text = text.slice(2, -2).trim();
   }

@@ -161,6 +161,15 @@ async function defaultInsertReportReview(
   return data?.id ?? null;
 }
 
+/**
+ * Quick Report is instructed to write "• " bullets, but `enforceOpinionOrder`
+ * runs before this and re-emits OPINION using whichever marker it was given —
+ * so one report can legitimately contain both markers. Matching only "- " here
+ * silently skipped OPINION de-duplication for "• " bullets, letting duplicate
+ * opinion lines reach the radiologist.
+ */
+const OPINION_BULLET_PREFIXES = ["- ", "• "] as const;
+
 function cleanQuickReport(reportTextPreClean: string): string {
   const lines = reportTextPreClean
     .split("\n")
@@ -173,7 +182,7 @@ function cleanQuickReport(reportTextPreClean: string): string {
       inOpinion = true;
       return true;
     }
-    if (inOpinion && line.trim().startsWith("- ")) {
+    if (inOpinion && OPINION_BULLET_PREFIXES.some((prefix) => line.trim().startsWith(prefix))) {
       if (seenOpinionBullets.has(upper)) return false;
       seenOpinionBullets.add(upper);
     }
@@ -523,10 +532,14 @@ export async function prepareQuickReport(
             estimated_cost_usd: estimatedCostUsd,
           });
 
+          // "•" because Quick Report's prompt instructs "•" bullets. Without
+          // this the re-emitted OPINION section would come back as dashes,
+          // contradicting the rest of the report it sits in.
           const reportTextPreClean = enforceOpinionOrder(
             accumulatedText,
             input.opinion_hints ?? "",
             input.residual_opinion_hints ?? "",
+            "•",
           );
           const finalReportText = cleanQuickReport(reportTextPreClean);
           const quickFindingLinesForReorder = (inputPayload.findings ?? "")
