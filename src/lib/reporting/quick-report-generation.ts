@@ -23,7 +23,7 @@ import {
   type AllowedModel,
 } from "./kernel.ts";
 import { persistReportUsageWithRetry } from "./usage-log-persistence.ts";
-import { getSkeleton, type Skeleton } from "../skeletons/skeletons.ts";
+import { findSkeleton, type SkeletonEntry } from "../skeletons/skeleton-list.ts";
 import { getUserPlan } from "../stripe/get-user-plan.ts";
 import { isNormalTemplateRow } from "../templates/normal-template.ts";
 import {
@@ -109,7 +109,13 @@ export interface QuickReportGenerationDeps {
   checkReportRateLimit?: typeof checkReportRateLimit;
   getUserPlan?: typeof getUserPlan;
   getOrCreateUsage?: typeof getOrCreateUsage;
-  getSkeleton?: (modality: string, bodyRegion: string, studyType: string) => Skeleton | null;
+  // findSkeleton, not the raw getSkeleton: case-insensitive and alias-aware
+  // (KUB/CT UT/CTU/CXR/TVS/positioning-word-stripping/etc — see
+  // skeleton-aliases.ts), the SAME matching logic GET /v1/skeletons uses.
+  // Quick's own preview and its real generation must agree on what counts
+  // as a match, or the preview can show a suggestion the actual request
+  // silently fails to use.
+  findSkeleton?: (modality: string, studyType: string) => SkeletonEntry | null;
   reserveCredits?: typeof reserveCredits;
   refundCredits?: typeof refundCredits;
   canUseFeature?: typeof canUseFeature;
@@ -336,7 +342,7 @@ export async function prepareQuickReport(
   const checkReportRateLimitFn = deps.checkReportRateLimit ?? checkReportRateLimit;
   const getUserPlanFn = deps.getUserPlan ?? getUserPlan;
   const getOrCreateUsageFn = deps.getOrCreateUsage ?? getOrCreateUsage;
-  const getSkeletonFn = deps.getSkeleton ?? getSkeleton;
+  const findSkeletonFn = deps.findSkeleton ?? findSkeleton;
   const reserveCreditsFn = deps.reserveCredits ?? reserveCredits;
   const refundCreditsFn = deps.refundCredits ?? refundCredits;
   const canUseFeatureFn = deps.canUseFeature ?? canUseFeature;
@@ -382,14 +388,26 @@ export async function prepareQuickReport(
   const modality = input.modality;
   const bodyRegion = input.body_region;
   const studyType = input.study_type || undefined;
-  const quickReportSkeleton = getSkeletonFn(
-    modality,
-    bodyRegion,
-    studyType || bodyRegion,
-  );
+  // findSkeleton searches every body_region bucket under the modality itself
+  // (see skeleton-list.ts), so unlike the old getSkeleton call there is no
+  // separate bodyRegion argument to pass -- studyType || bodyRegion is the
+  // exact same fallback getSkeleton used, kept for a caller that only sent
+  // body_region.
+  const quickReportSkeleton = findSkeletonFn(modality, studyType || bodyRegion);
   const mriTechniqueLines = modality === "MRI" && quickReportSkeleton?.technique?.length
     ? quickReportSkeleton.technique
     : undefined;
+  // findSkeleton's findings field is a single newline-joined string (the
+  // GET /v1/skeletons HTTP contract), not the string[] normal_skeleton_findings
+  // expects -- prompt_builder.ts calls .join("\n") on it directly, which
+  // throws on a string. Split it back into lines here rather than changing
+  // the HTTP contract or duplicating a second copy of the skeleton data in
+  // array form. Checked on the pre-split (trimmed) string, not the
+  // post-split array's length: an empty string split on "\n" yields a
+  // single-element array (length 1), not an empty one (length 0).
+  const skeletonFindingsLines = quickReportSkeleton?.findings?.trim()
+    ? quickReportSkeleton.findings.split("\n")
+    : [];
   const inputPayload: MatchInput & { preserve_findings_order: boolean } = {
     modality,
     body_region: bodyRegion,
@@ -407,9 +425,7 @@ export async function prepareQuickReport(
     my_template_mode: false,
     template_edits: undefined,
     mri_technique: mriTechniqueLines,
-    normal_skeleton_findings: quickReportSkeleton?.findings?.length
-      ? quickReportSkeleton.findings
-      : undefined,
+    normal_skeleton_findings: skeletonFindingsLines.length ? skeletonFindingsLines : undefined,
     style_profile: null,
     style_examples: [],
   };

@@ -111,13 +111,16 @@ function happyScenario(overrides = {}) {
         period_end: "2026-09-01T00:00:00.000Z",
       };
     },
-    getSkeleton: (modality, bodyRegion, studyType) => {
+    findSkeleton: (modality, studyType) => {
       calls.sequence.push("skeleton");
-      calls.skeleton.push({ modality, bodyRegion, studyType });
+      calls.skeleton.push({ modality, studyType });
       return {
+        modality, body_region: "MSK", study_type: studyType,
         title: "MRI RIGHT KNEE",
         technique: ["Sagittal T1", "Coronal PD fat-suppressed"],
-        findings: ["Normal marrow signal.", "Intact collateral ligaments."],
+        // findSkeleton's real contract: a single newline-joined string, not
+        // an array -- the production code splits this back into lines.
+        findings: "Normal marrow signal.\nIntact collateral ligaments.",
         opinion: "No significant abnormality.",
       };
     },
@@ -207,7 +210,9 @@ test("canonical Quick flow freezes normalization, matching, prompt, provider, ac
     "rate-limit", "plan", "usage", "skeleton", "reserve", "entitlement",
     "parse", "prompt", "provider", "usage-log", "reorder", "review-log",
   ]);
-  assert.deepEqual(scenario.calls.skeleton, [{ modality: "MRI", bodyRegion: "MSK", studyType: "Knee" }]);
+  // No bodyRegion argument: findSkeleton searches every body_region bucket
+  // under the modality itself, unlike the old 3-argument getSkeleton call.
+  assert.deepEqual(scenario.calls.skeleton, [{ modality: "MRI", studyType: "Knee" }]);
   assert.deepEqual(scenario.calls.reserve, [{ userId: USER.id, mode: "fast" }]);
   assert.deepEqual(scenario.calls.entitlement, [{ userId: USER.id, plan: "pro", feature: "pathology_reports" }]);
   assert.equal(scenario.calls.matcher.length, 2);
@@ -317,7 +322,7 @@ test("canonical Quick flow freezes normalization, matching, prompt, provider, ac
 });
 
 test("missing skeleton falls back without title, MRI technique, or normal baseline", async () => {
-  const scenario = happyScenario({ getSkeleton: () => null });
+  const scenario = happyScenario({ findSkeleton: () => null });
   await prepareAndRun(scenario);
   const prompt = scenario.calls.prompt[0];
   assert.equal(prompt.report_header, undefined);
@@ -639,4 +644,67 @@ test("a mixed-marker report de-duplicates across both markers", async () => {
     .split("\n")
     .filter((line) => line.trim().length > 0);
   assert.equal(opinionBullets.length, 1, "same opinion under two markers is one bullet");
+});
+
+// ── Generation layer uses the REAL, aliased findSkeleton ─────────────────────
+// Unlike every other test in this file, these deliberately do NOT override
+// findSkeleton -- they exercise the actual production skeleton-list.ts
+// against the real SKELETONS data, so a passing test here proves the
+// alias/case-insensitivity fix is genuinely wired into the generation call
+// path, not just the /v1/skeletons preview endpoint (already covered by
+// skeleton-aliases.test.ts and skeleton-list.test.ts).
+
+test("an alias input ('LSS') resolves the SAME normal baseline at generation as the canonical key", async () => {
+  const canonical = happyScenario({ findSkeleton: undefined });
+  await prepareAndRun(canonical, { ...BASE_INPUT, modality: "MRI", body_region: "Spine", study_type: "Lumbar Spine" });
+
+  const aliased = happyScenario({ findSkeleton: undefined });
+  await prepareAndRun(aliased, { ...BASE_INPUT, modality: "MRI", body_region: "Spine", study_type: "LSS" });
+
+  const canonicalPrompt = canonical.calls.prompt[0];
+  const aliasedPrompt = aliased.calls.prompt[0];
+
+  assert.ok(canonicalPrompt.normal_skeleton_findings?.length, "canonical key must produce a real baseline");
+  assert.deepEqual(aliasedPrompt.normal_skeleton_findings, canonicalPrompt.normal_skeleton_findings);
+  assert.equal(aliasedPrompt.report_header, canonicalPrompt.report_header);
+  // The real skeleton content, not a mock -- pins that this is genuinely the
+  // production SKELETONS data, not an artifact of the test doubles.
+  assert.ok(canonicalPrompt.normal_skeleton_findings.some(
+    (line) => /lumbosacral spine|lumbar spinal canal/i.test(line),
+  ));
+});
+
+test("realistic ALL-CAPS DICOM input ('KNEE') resolves at generation exactly like the title-cased key", async () => {
+  const canonical = happyScenario({ findSkeleton: undefined });
+  await prepareAndRun(canonical, { ...BASE_INPUT, modality: "CT", body_region: "MSK", study_type: "Knee" });
+
+  const realistic = happyScenario({ findSkeleton: undefined });
+  await prepareAndRun(realistic, { ...BASE_INPUT, modality: "CT", body_region: "MSK", study_type: "KNEE" });
+
+  assert.deepEqual(
+    realistic.calls.prompt[0].normal_skeleton_findings,
+    canonical.calls.prompt[0].normal_skeleton_findings,
+  );
+});
+
+test("a modality/study_type combo with no match still falls through cleanly at generation (no crash, no baseline)", async () => {
+  const scenario = happyScenario({ findSkeleton: undefined });
+  await prepareAndRun(scenario, { ...BASE_INPUT, modality: "CT", body_region: "MSK", study_type: "Definitely Not A Real Study Type" });
+
+  const prompt = scenario.calls.prompt[0];
+  assert.equal(prompt.report_header, undefined);
+  assert.equal(prompt.normal_skeleton_findings, undefined);
+});
+
+test("findSkeleton's joined-string findings survive the round trip through normal_skeleton_findings as a real array", async () => {
+  const scenario = happyScenario({ findSkeleton: undefined });
+  await prepareAndRun(scenario, { ...BASE_INPUT, modality: "CT", body_region: "MSK", study_type: "Foot" });
+
+  const findings = scenario.calls.prompt[0].normal_skeleton_findings;
+  assert.ok(Array.isArray(findings), "must be split back into an array, not the raw joined string");
+  assert.ok(findings.length > 1, "a real skeleton entry has multiple findings lines");
+  for (const line of findings) {
+    assert.equal(typeof line, "string");
+    assert.doesNotMatch(line, /\n/, "each array element must be one line, not still-joined text");
+  }
 });
