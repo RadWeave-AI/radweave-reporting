@@ -27,6 +27,7 @@ import {
 } from "./auth/resolve-caller.ts";
 import type { AuthFailure, AuthFailureReason, Principal, UserPrincipal } from "./auth/principal.ts";
 import { formatReport, validateFormatReportRequest } from "./formatting/index.ts";
+import { findSkeleton, listSkeletons } from "./lib/skeletons/skeleton-list.ts";
 import type { TemplateCatalogResult } from "./lib/templates/catalog-list.ts";
 import type { ReadinessReport } from "./health/readiness.ts";
 import { ServiceError, errorEnvelope, statusFor, type ErrorCategory } from "./http/errors.ts";
@@ -259,6 +260,7 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: Vars }> {
   app.use("/v1/reviews/*", authenticate);
   app.use("/v1/credits", authenticate);
   app.use("/v1/templates", authenticate);
+  app.use("/v1/skeletons", authenticate);
 
   /**
    * The account's template catalogue: the shared RadWeave library plus the
@@ -316,6 +318,55 @@ export function createApp(deps: AppDeps = {}): Hono<{ Variables: Vars }> {
       request_id: c.get("requestId"),
       counts: result.counts,
       templates: result.templates,
+    });
+  });
+
+  /**
+   * The static normal-baseline content Quick Report actually generates
+   * from — the SAME `SKELETONS` data `getSkeleton` reads, not a copy or an
+   * approximation. Exposed so a client's preview can genuinely reflect what
+   * a Quick Report generation will use, instead of previewing something
+   * else (a database template) and hoping it matches.
+   *
+   * No per-user data here — there is nothing to scope by owner, so unlike
+   * /v1/templates this accepts any authenticated principal, user or org.
+   *
+   * GET /v1/skeletons                          -> every entry
+   * GET /v1/skeletons?modality=CT               -> every entry for that modality
+   * GET /v1/skeletons?modality=CT&study_type=Foot -> one entry, or null if none
+   *
+   * study_type searches every body_region bucket under the given modality
+   * rather than requiring the caller to also name one — see skeleton-list.ts
+   * for why. A study_type with no modality is rejected: modality alone is a
+   * meaningful filter, study_type alone is not (the same study_type string
+   * can exist under multiple modalities).
+   */
+  app.get("/v1/skeletons", (c) => {
+    const modality = c.req.query("modality")?.trim() || undefined;
+    const studyType = c.req.query("study_type")?.trim() || undefined;
+
+    if (modality !== undefined && modality.length > 64) {
+      throw new ServiceError("validation-error", "modality is too long.");
+    }
+    if (studyType !== undefined && studyType.length > 128) {
+      throw new ServiceError("validation-error", "study_type is too long.");
+    }
+    if (studyType !== undefined && modality === undefined) {
+      throw new ServiceError("validation-error", "study_type requires modality.");
+    }
+
+    if (studyType !== undefined) {
+      return c.json({
+        ok: true,
+        request_id: c.get("requestId"),
+        skeleton: findSkeleton(modality!, studyType),
+      });
+    }
+
+    return c.json({
+      ok: true,
+      request_id: c.get("requestId"),
+      skeletons: listSkeletons(modality),
     });
   });
 
