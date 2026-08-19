@@ -138,6 +138,15 @@ async function defaultFetchSharedTemplates(
     .eq("is_hidden", false)
     .is("deleted_at", null)
     .or("source.is.null,source.eq.curated")
+    // Mirrors the website's own convention (app/api/templates/folders/route.ts,
+    // scripts/seed_template_samples.sql, the 20260721000001 migration): rows
+    // tagged body_region = "PET CT" are hybrid-exam templates filed under an
+    // ordinary modality (typically "CT") and are excluded from modality-folder
+    // browsing everywhere else in this product. This endpoint had drifted from
+    // that convention -- it was the one place still returning them -- which is
+    // how a PET/CT template ended up mixed into RadWeave Desktop's CT/X-ray
+    // rail folders instead of being excluded like every other browse path.
+    .neq("body_region", "PET CT")
     .limit(2000);
   if (modality) query = query.in("modality", sharedModalityFilter(modality));
 

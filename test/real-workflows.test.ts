@@ -10,6 +10,7 @@ import type { QuickReportGenerationEvent } from "../src/lib/reporting/quick-repo
 import type { TemplateGuidedGenerationEvent } from "../src/lib/reporting/template-guided-generation.ts";
 import { createRealWorkflow, type RealWorkflowDeps } from "../src/workflows/real.ts";
 import type { WorkflowEvent, WorkflowName } from "../src/workflows/types.ts";
+import { ServiceError, statusFor } from "../src/http/errors.ts";
 
 process.env.SUPABASE_URL ??= "https://example.supabase.co";
 process.env.SUPABASE_ANON_KEY ??= "anon";
@@ -160,6 +161,46 @@ for (const workflow of Object.keys(MODES) as WorkflowName[]) {
     assert.equal(receivedAuthClient, workflow === "my-template" ? rlsSupabase : undefined);
   });
 }
+
+test("a template-guided selection that does not match the study's modality maps to not-found, not provider-error", async () => {
+  await assert.rejects(
+    createRealWorkflow(context("template-guided"), {
+      serviceSupabase,
+      createRlsClient: () => rlsSupabase,
+      prepareTemplateGuided: (async () => ({
+        ok: false,
+        category: "setup-error",
+        message: "Selected template was not found for this study.",
+      })) as RealWorkflowDeps["prepareTemplateGuided"],
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof ServiceError);
+      assert.equal(error.category, "not-found");
+      assert.equal(statusFor(error.category), 404);
+      assert.equal(error.message, "Selected template was not found for this study.");
+      return true;
+    },
+  );
+});
+
+test("a skeleton-normal setup failure stays provider-error (different cause, not a template mismatch)", async () => {
+  await assert.rejects(
+    createRealWorkflow(context("template-guided"), {
+      serviceSupabase,
+      createRlsClient: () => rlsSupabase,
+      prepareTemplateGuided: (async () => ({
+        ok: false,
+        category: "setup-error",
+        message: "Normal skeleton was not found for this study.",
+      })) as RealWorkflowDeps["prepareTemplateGuided"],
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof ServiceError);
+      assert.equal(error.category, "provider-error");
+      return true;
+    },
+  );
+});
 
 test("My Template refuses to prepare when the RLS client cannot resolve auth.uid()", async () => {
   let prepared = false;

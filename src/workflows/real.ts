@@ -96,6 +96,20 @@ function preparationError(failure: PreparationFailure): ServiceError {
       if (/plan upgrade/i.test(failure.message)) {
         return new ServiceError("upgrade-required", failure.message);
       }
+      // template-guided-generation.ts throws this EXACT message when
+      // selected_template_id does not resolve for the request's own modality
+      // (the id is real, but belongs to a different modality than the study).
+      // Collapsing it into the generic "provider-error" below -- as this used
+      // to do -- told the caller "our service is down" for what is actually a
+      // clean, correctable mismatch in what was selected. Desktop renders
+      // "not-found" with its own specific message; see
+      // _BACKEND_ERROR_MESSAGES["not-found"] in radweave_runtime/service.py.
+      // Anchored exactly (not a substring match) so it does NOT also catch
+      // "Normal skeleton was not found for this study." -- a different cause
+      // with a different fix, still meant to fall through to provider-error.
+      if (/^Selected template was not found for this study\.$/.test(failure.message)) {
+        return new ServiceError("not-found", failure.message);
+      }
       return new ServiceError("provider-error", "Report generation could not be prepared.");
   }
 }

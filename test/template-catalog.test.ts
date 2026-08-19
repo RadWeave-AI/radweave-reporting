@@ -233,3 +233,47 @@ test("counts match the templates actually returned", async () => {
     result.templates.filter((t) => t.category === "user").length,
   );
 });
+
+// ── Real query shape (defaultFetchSharedTemplates, not the injected mock) ───
+
+/** Minimal chainable/thenable fake mirroring the supabase-js query builder. */
+function fakeSharedTemplatesClient(recorder: string[]) {
+  const chain: Record<string, (...args: unknown[]) => unknown> = {
+    from: (table) => { recorder.push(`from:${table}`); return builder; },
+    select: (cols) => { recorder.push(`select:${cols}`); return builder; },
+    eq: (col, val) => { recorder.push(`eq:${col}=${val}`); return builder; },
+    is: (col, val) => { recorder.push(`is:${col}=${val}`); return builder; },
+    or: (expr) => { recorder.push(`or:${expr}`); return builder; },
+    neq: (col, val) => { recorder.push(`neq:${col}=${val}`); return builder; },
+    in: (col, vals) => { recorder.push(`in:${col}=${JSON.stringify(vals)}`); return builder; },
+    limit: (n) => { recorder.push(`limit:${n}`); return builder; },
+  };
+  // then() has its own, differently-shaped signature -- kept off the
+  // Record<string, (...args: unknown[]) => unknown> type above so it doesn't
+  // have to lie about its parameter type.
+  const builder = {
+    ...chain,
+    then: (resolve: (v: { data: unknown[]; error: null }) => void) => resolve({ data: [], error: null }),
+  };
+  return builder as never;
+}
+
+test("the real shared-template query excludes body_region = PET CT, matching the website's own browsing convention", async () => {
+  // A live query the website itself makes at 4+ call sites (folders/route.ts,
+  // seed_template_samples.sql, the 20260721000001 migration): PET/CT hybrid
+  // rows are filed under an ordinary modality but excluded from modality-
+  // folder browsing everywhere. This endpoint is Desktop's only source for
+  // that same browsing surface and must apply the identical exclusion.
+  const calls: string[] = [];
+  const fakeClient = fakeSharedTemplatesClient(calls);
+
+  await listTemplateCatalog(
+    fakeClient, CLIENT, { id: "user-1" }, {},
+    deps({ fetchSharedTemplates: undefined, fetchUserTemplates: async () => [] }),
+  );
+
+  assert.ok(
+    calls.includes("neq:body_region=PET CT"),
+    `expected a .neq("body_region", "PET CT") call, got: ${calls.join(", ")}`,
+  );
+});
